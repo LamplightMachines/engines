@@ -4,7 +4,8 @@
 //      the npm side follows the same rule as the crates;
 //   2. every manifest has a licence field, and none says UNLICENSED;
 //   3. each extension's licence file is a copy of the root one (vsce packages only the extension's folder).
-// `node .github/scripts/licences.js` prints what's wrong and exits 1.
+// `node .github/scripts/licences.js [root]` prints what's wrong and exits 1. `root` defaults to this repo; a repo
+// that embeds this one (a companion) passes its own, with its own deny.toml and extensions.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -114,7 +115,7 @@ function problems(root = ROOT) {
 
   // vsce packages only an extension's own folder, so each carries a copy of its licence.
   for (const [copy, original, needed] of [
-    ['editors/vscode/LICENSE', 'LICENSE', true],
+    ['editors/vscode/LICENSE', 'LICENSE', fs.existsSync(path.join(root, 'editors/vscode'))],
     ['editors/studio/LICENSE-PROPRIETARY', 'LICENSE-PROPRIETARY', fs.existsSync(path.join(root, 'editors/studio'))],
   ]) {
     const file = path.join(root, copy);
@@ -126,7 +127,7 @@ function problems(root = ROOT) {
 }
 
 if (require.main === module) {
-  const found = problems();
+  const found = problems(process.argv[2] ? path.resolve(process.argv[2]) : ROOT);
   for (const p of found) console.error(`licences: ${p}`);
   if (found.length) process.exit(1);
   console.log('licences ok: npm runtime packages, manifest fields, the extensions\' licence files');

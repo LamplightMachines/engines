@@ -50,3 +50,28 @@ test('a manifest licence is read from package.json, Cargo.toml and pyproject.tom
 test('the repo passes', () => {
   assert.deepEqual(problems(), []);
 });
+
+test('a companion repo is checked from its own root: its extension, its manifests, no editors/vscode', () => {
+  const os = require('node:os');
+  const { execFileSync } = require('node:child_process');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'licences-companion-'));
+  try {
+    const write = (f, text) => {
+      fs.mkdirSync(path.dirname(path.join(root, f)), { recursive: true });
+      fs.writeFileSync(path.join(root, f), text);
+    };
+    write('deny.toml', '[licenses]\nallow = ["MIT"]\n\n[other]\n');
+    write('LICENSE-PROPRIETARY', 'closed\n');
+    write('editors/studio/LICENSE-PROPRIETARY', 'closed\n');
+    write('editors/studio/package.json', '{"license": "SEE LICENSE IN LICENSE-PROPRIETARY"}');
+    const lock = (licence) => JSON.stringify({ packages: { '': {}, 'node_modules/x': { license: licence } } });
+    write('editors/studio/package-lock.json', lock('MIT'));
+    execFileSync('git', ['init', '-q'], { cwd: root });
+    execFileSync('git', ['add', '-A'], { cwd: root });
+    assert.deepEqual(problems(root), [], 'no editors/vscode, so no copy of a LICENSE is expected');
+    write('editors/studio/package-lock.json', lock('GPL-3.0-only'));
+    assert.deepEqual(problems(root), ['editors/studio: the runtime package x is GPL-3.0-only, which deny.toml doesn\'t allow']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

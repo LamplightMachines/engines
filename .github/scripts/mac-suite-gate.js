@@ -13,7 +13,8 @@
 
 // What the Mac suite covers: Rust (the goldens), the fixtures the goldens render, the schema, the
 // VS Code extension (its end-to-end suite), the Swift shell, and the two files that define the suite
-// itself (the Makefile targets and mac-suite.sh).
+// itself (the Makefile targets and mac-suite.sh). A repo that embeds this one (a companion) passes its own
+// list to `run` (`{ covered }`), and the same rules apply to it.
 const COVERED = [/^crates\//, /^Cargo\.(toml|lock)$/, /^lab\/tests\/fixtures\//, /^contracts\//, /^editors\/vscode\//, /^shell\//, /^Makefile$/, /^\.github\/scripts\/mac-suite\.sh$/];
 const CONTEXT = 'mac-suite';
 // mac-suite.sh's success description; its failures are any `failure` (the gate never posts one).
@@ -24,11 +25,11 @@ const MAX_FILES = 300;
 // A commit status description holds at most 140 characters.
 const MAX_DESCRIPTION = 140;
 
-const isCovered = (path) => COVERED.some((re) => re.test(path));
+const isCovered = (path, covered = COVERED) => covered.some((re) => re.test(path));
 
 /** The paths a changed file touches that the Mac suite covers: a rename counts by both names. */
-const coveredPaths = (files) =>
-  files.flatMap((f) => [f.filename, f.previous_filename].filter(Boolean)).filter(isCovered);
+const coveredPaths = (files, covered = COVERED) =>
+  files.flatMap((f) => [f.filename, f.previous_filename].filter(Boolean)).filter((p) => isCovered(p, covered));
 
 /** A `make test-mac` result, as opposed to the gate's own statuses or a run still in progress. */
 const isMacResult = (s) => s.state === 'failure' || (s.state === 'success' && PASSED.test(s.description ?? ''));
@@ -51,17 +52,17 @@ async function carrySource({ commits, latestStatus }) {
 }
 
 /** Whether a compare of the pass's commit to the head allows the carry; the reason when it doesn't. */
-function carryBlocker(compare) {
+function carryBlocker(compare, covered = COVERED) {
   if (compare.status !== 'ahead') return `the head isn't ahead of it (${compare.status}: a force-push or rebase)`;
   const files = compare.files ?? [];
   if (files.length >= MAX_FILES) return `the compare lists ${files.length} files and may be truncated`;
-  const hits = coveredPaths(files);
+  const hits = coveredPaths(files, covered);
   if (hits.length) return `${hits.length} file(s) it covers changed since`;
   return null;
 }
 
 /** Decides the status for the PR's head: `{ state, description }`, or null to leave it as is. */
-async function decide({ github, repo, pr, log = () => {} }) {
+async function decide({ github, repo, pr, covered = COVERED, log = () => {} }) {
   const sha = pr.head.sha;
   const latestStatus = async (ref) => {
     const { data } = await github.rest.repos.getCombinedStatusForRef({ ...repo, ref });
@@ -75,7 +76,7 @@ async function decide({ github, repo, pr, log = () => {} }) {
   }
 
   const files = await github.paginate(github.rest.pulls.listFiles, { ...repo, pull_number: pr.number, per_page: 100 });
-  const hits = coveredPaths(files);
+  const hits = coveredPaths(files, covered);
   if (!hits.length) return { state: 'success', description: 'not needed: nothing the Mac suite covers changed' };
   const pending = { state: 'pending', description: `run make test-mac on the Mac: ${hits.length} file(s) it covers changed` };
 
@@ -96,7 +97,7 @@ async function decide({ github, repo, pr, log = () => {} }) {
     return pending;
   }
   const { data: compare } = await github.rest.repos.compareCommitsWithBasehead({ ...repo, basehead: `${source.sha}...${sha}` });
-  const blocker = carryBlocker(compare);
+  const blocker = carryBlocker(compare, covered);
   if (blocker) {
     log(`not carried from ${source.sha.slice(0, 7)}: ${blocker}`);
     return pending;
@@ -105,10 +106,10 @@ async function decide({ github, repo, pr, log = () => {} }) {
   return { state: 'success', description: description.length > MAX_DESCRIPTION ? `${description.slice(0, MAX_DESCRIPTION - 1)}…` : description };
 }
 
-/** The job's step: decides, then posts the status on the head. */
-async function run({ github, context, core }) {
+/** The job's step: decides, then posts the status on the head. `covered`: a companion repo's own paths. */
+async function run({ github, context, core }, { covered = COVERED } = {}) {
   const pr = context.payload.pull_request;
-  const verdict = await decide({ github, repo: context.repo, pr, log: (m) => core.info(m) });
+  const verdict = await decide({ github, repo: context.repo, pr, covered, log: (m) => core.info(m) });
   if (!verdict) return;
   await github.rest.repos.createCommitStatus({ ...context.repo, sha: pr.head.sha, context: CONTEXT, ...verdict });
   core.info(`mac-suite: ${verdict.state} (${verdict.description})`);
