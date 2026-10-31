@@ -303,7 +303,7 @@
     "test": "npm run compile && node --test 'out/test/*.test.js'",
     "test:e2e": "npm run compile && node out/test-e2e/run.js",
     "harness": "npm run compile && node out/dev/serve.js",
-    "package": "node -e \"require('fs').rmSync('out', { recursive: true, force: true })\" && tsc -p . && vsce package -o engines.vsix"
+    "package": "node -e \"require('fs').rmSync('out', { recursive: true, force: true })\" && tsc -p . && node out/dev/package.js -o engines.vsix"
   },
   "dependencies": {
     "vscode-languageclient": "^10.1.1"
