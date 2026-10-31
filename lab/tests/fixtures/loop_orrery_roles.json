@@ -1,0 +1,144 @@
+{
+  "schema_version": "0.9",
+  "loop_id": 1042,
+  "meta": {
+    "created_by": "orrery-roles-fixture",
+    "note": "Phase 4: Orrery bound purely by orrery_role on non-demo ids; a held-fifth drone (context) biases the voyage and a one-shot chime gets chord-tone accents."
+  },
+  "transport": {
+    "bpm": 60,
+    "master_steps": 16,
+    "step_unit": "beat",
+    "swing": 0.0,
+    "timing_jitter_ms": 6
+  },
+  "harmony": {
+    "root": "D",
+    "mode": "dorian"
+  },
+  "global": {
+    "master_gain_db": -10.75,
+    "stereo_width": 0.6
+  },
+  "safe_bounds": {
+    "global.master_gain_db": {
+      "min": -11.7,
+      "max": -9.9
+    }
+  },
+  "instruments": {
+    "warm_pad": {
+      "enabled": true,
+      "pitched": true,
+      "note_engine": { "polyphony": 6, "glide_ms": 320 },
+      "params": { "wave": "saw_soft", "voices_detune_cents": 5, "level_db": -6.02, "cutoff_hz": 553.46 },
+      "sends_db": { "rv": 0 }
+    },
+    "deep_bass": {
+      "enabled": true,
+      "pitched": true,
+      "note_engine": { "polyphony": 1, "glide_ms": 520 },
+      "params": { "wave": "triangle", "drive_db": 6.36, "level_db": -1.94, "cutoff_hz": 241.6 },
+      "sends_db": { "rv": 0 }
+    },
+    "glint_synth": {
+      "enabled": true,
+      "pitched": true,
+      "note_engine": { "polyphony": 3, "glide_ms": 0 },
+      "params": { "wave": "sine", "attack_s": 0, "decay_s": 1.65, "sustain": 0.0, "release_s": 0.72, "level_db": -11.7, "cutoff_hz": 2529.8 },
+      "sends_db": { "rv": 0 }
+    },
+    "chime": {
+      "enabled": true,
+      "pitched": true,
+      "note_engine": { "polyphony": 2, "glide_ms": 0 },
+      "params": { "wave": "sine_bell", "decay_s": 2.1, "level_db": -13.15 },
+      "sends_db": { "rv": 0 }
+    },
+    "drone": {
+      "enabled": true,
+      "pitched": true,
+      "note_engine": { "polyphony": 1, "glide_ms": 800 },
+      "params": { "wave": "triangle", "level_db": -10.46, "cutoff_hz": 318.49 },
+      "sends_db": { "rv": 0 }
+    }
+  },
+  "modulators": {
+    "lfo_breath": {
+      "type": "lfo",
+      "output": "control",
+      "wave": "sine",
+      "sync": "free",
+      "rate_hz": 0.045,
+      "polarity": "bipolar"
+    },
+    "pad_voicing": {
+      "type": "step_seq",
+      "output": "note",
+      "orrery_role": "chord",
+      "sync": "loop",
+      "length": 16,
+      "steps": [
+        { "step": 0, "voicing": { "v1": { "offset": 0 }, "v2": { "offset": 7 }, "v3": { "offset": 10 }, "v4": { "offset": 14 } } }
+      ]
+    },
+    "sub_bass": {
+      "type": "step_seq",
+      "output": "note",
+      "orrery_role": "bass",
+      "sync": "loop",
+      "length": 16,
+      "steps": [
+        { "step": 0, "voicing": { "b": { "offset": -17 } } }
+      ]
+    },
+    "glints": {
+      "type": "step_seq",
+      "output": "note",
+      "orrery_role": "arp",
+      "sync": "loop",
+      "length": 16,
+      "step_duration": "1/16",
+      "humanize_ms": 6,
+      "generator": { "kind": "euclid", "pulses": 7, "rotation": 0 },
+      "pitch_walk": { "pool": [12, 15, 19, 22, 24, 26], "order": "up" }
+    },
+    "chimes": {
+      "type": "step_seq",
+      "output": "note",
+      "orrery_role": "oneshot",
+      "sync": "free",
+      "length": 17,
+      "step_duration": "1/16",
+      "steps": [
+        { "step": 3, "voicing": { "c": { "offset": 19, "prob": 0.5 } } }
+      ]
+    },
+    "held_fifth": {
+      "type": "step_seq",
+      "output": "note",
+      "orrery_role": "context",
+      "sync": "loop",
+      "length": 16,
+      "steps": [
+        { "step": 0, "voicing": { "d": { "offset": -5 } } }
+      ]
+    }
+  },
+  "matrix": {
+    "m_breath_c": { "source": "lfo_breath", "dest": "instruments.warm_pad.params.cutoff_hz", "kind": "mod", "depth_oct": 0.399, "mode": "add", "depth_slew_ms": 1500 },
+    "m_chords": { "source": "pad_voicing", "dest": "instruments.warm_pad.notes", "kind": "note", "voices": 4, "priority": 1 },
+    "m_bass": { "source": "sub_bass", "dest": "instruments.deep_bass.notes", "kind": "note", "voices": 1, "priority": 1 },
+    "m_arp": { "source": "glints", "dest": "instruments.glint_synth.notes", "kind": "note", "voices": 3, "priority": 2 },
+    "m_chime": { "source": "chimes", "dest": "instruments.chime.notes", "kind": "note", "voices": 2, "priority": 3 },
+    "m_drone": { "source": "held_fifth", "dest": "instruments.drone.notes", "kind": "note", "voices": 1, "priority": 1 }
+  },
+  "buses": {
+    "rv": {
+      "return_gain_db": -9.63,
+      "effects": {
+        "verb": { "type": "reverb", "params": { "room": 0.72, "damping": 0.35, "shimmer": 0.3, "width": 0.72, "predelay_ms": 16.0 } }
+      }
+    }
+  }
+}

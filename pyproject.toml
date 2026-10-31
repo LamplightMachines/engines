@@ -1,0 +1,27 @@
+# Python lab config. Post-rewrite (ADR 0003) the lab is PURE PYTHON — it drives the Rust
+# engine over the file/CLI boundary (no C++ extension, no scikit-build/pybind11 build).
+# There is nothing to compile here; this file only configures the lab deps + pytest.
+[project]
+name = "engines-lab"
+version = "0.0.1"
+license = "GPL-3.0-or-later"
+description = "Composing instrument for long-form generative tracks — Python lab over the Rust engine (CLI/file boundary)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+# Not an installable/buildable package — `uv run` should not try to build it (there is no
+# build backend). The lab is run in-tree against the Rust binaries.
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["lab/tests"]
+# Make the `engines_lab` lab package importable without an install step.
+pythonpath = ["lab"]

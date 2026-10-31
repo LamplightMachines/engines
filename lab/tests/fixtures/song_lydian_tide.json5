@@ -1,0 +1,196 @@
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+//  A neutral test song: `loop_drone_d_lydian.json5` as a short song (ADR 0029) — written for
+//  the tests and the goldens, not a published piece. Four blocks over about an hour, each a matrix
+//  configuration of the same drone: `settle` (no tick, no throb, the hum trimmed), the base `drift`,
+//  `deep` (no tick, no throb, no flutter, the hum trimmed, more veil shimmer) and `surface` (the base,
+//  another seed). Each seam glides over 8 s; a two-loop tail rings out. The hum's trims are the
+//  constant-offset idiom: `unity` routed at a fixed depth into its level, per block.
+//
+//  Plan:    ./target/release/engines-song --doc lab/tests/fixtures/song_lydian_tide.json5 --out /tmp/tide.wav --dry-run
+//  Blocks:  ./target/release/engines-song --doc lab/tests/fixtures/song_lydian_tide.json5 --emit-blocks /tmp/tide-blocks
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+{
+  schema_version: "0.9",
+  loop_id: 2,
+  meta: {
+    created_by: "test fixture",
+    center_hz: 146.83,
+    note: "A neutral test song: the D3 test drone in four blocks over an hour, glided seams and a tail. Written for the tests, not a published piece.",
+  },
+
+  transport: {
+    bpm: 72,             // 13.3 s loop
+    master_steps: 16,
+    step_unit: "beat",
+    swing: 0.06,         // odd beats a touch late
+    timing_jitter_ms: 2, // seeded, so renders stay bit-reproducible
+  },
+  harmony: { root: "D", mode: "lydian" }, // the overtones over D land on D E F# A, and the 11th on G#
+
+  global: { master_gain_db: -14, stereo_width: 0.6 },
+  // Every level-ish lever frozen at its authored value: drift moves timbre and harmony, never loudness.
+  safe_bounds: {
+    "global.master_gain_db": { min: -14, max: -14 },
+    "instruments.floor.params.level_db": { min: -4, max: -4 },
+    "instruments.hum.params.level_db": { min: -6, max: -6 },
+    "instruments.hum.params.drive_db": { min: 8, max: 8 },
+    "instruments.overtones.params.level_db": { min: -11, max: -11 },
+    "instruments.veil.params.level_db": { min: -18, max: -18 },
+    "instruments.tick.params.level_db": { min: -12, max: -12 },
+    "buses.rv.return_gain_db": { min: -7, max: -7 },
+  },
+  max_drift: 0.10,
+
+  instruments: {
+    // The floor: a sine an octave under the centre (D2).
+    floor: {
+      pitched: true,
+      note_engine: { polyphony: 1, glide_ms: 0 },
+      params: { wave: "sine", level_db: -4, cutoff_hz: 260, attack_s: 1.2, decay_s: 0.5, sustain: 1.0, release_s: 2.6 },
+      sends_db: { rv: -24 },
+    },
+    // The hum: a 1:1 phase-modulated pair on the centre, driven a little — the fused part.
+    hum: {
+      pitched: true, type: "dual",
+      note_engine: { polyphony: 1, glide_ms: 0 },
+      params: {
+        osc_a_wave: "sine", osc_b_wave: "sine", osc_a_level_db: -2, osc_b_level_db: -Infinity,
+        osc_b_ratio: 1.0, osc_b_detune_cents: 0, fm_index: 0.3, fm_feedback: 0.15,
+        drive_db: 8, level_db: -6, cutoff_hz: 1100, resonance: 0.12,
+        attack_s: 1.0, decay_s: 0.5, sustain: 1.0, release_s: 2.2,
+      },
+      sends_db: { rv: -15 },
+    },
+    // Just-tuned partials of the centre.
+    overtones: {
+      pitched: true,
+      note_engine: { polyphony: 4, glide_ms: 0 },
+      params: { wave: "triangle", voices_detune_cents: 0, level_db: -11, cutoff_hz: 1300, resonance: 0.0,
+                attack_s: 2.0, decay_s: 1.0, sustain: 0.8, release_s: 3.0 },
+      sends_db: { rv: -6 },
+    },
+    // The veil: a quiet pad, the Orrery's only chord voice, its octave shimmer mixed in by an LFO.
+    veil: {
+      pitched: true,
+      note_engine: { polyphony: 4, glide_ms: 1200 },
+      params: { wave: "saw_soft", voices_detune_cents: 5, level_db: -18, cutoff_hz: 950, resonance: 0.1,
+                attack_s: 2.4, decay_s: 1.0, sustain: 0.7, release_s: 3.6, shift_st: 12, shift_mix: 0.0 },
+      sends_db: { rv: -1 },
+    },
+    // The tick: a small modal strike, played from sequence pools.
+    tick: {
+      pitched: true, type: "modal",
+      note_engine: { polyphony: 3, glide_ms: 0 },
+      params: { material: "resonators", num_modes: 4, t60_mode: "note", ring_ratio: 0.8,
+                brightness: 0.5, strike_pos: 0.3, stretch: 0.0, level_db: -12 },
+      sends_db: { rv: -10 },
+    },
+  },
+
+  modulators: {
+    lfo_swell:   { type: "lfo", output: "control", wave: "sine", sync: "free", rate_hz: 0.038, polarity: "bipolar" },
+    lfo_grain:   { type: "lfo", output: "control", wave: "sine", sync: "free", rate_hz: 0.027, polarity: "bipolar" },
+    lfo_glint:   { type: "lfo", output: "control", wave: "sine", sync: "free", rate_hz: 0.019, polarity: "unipolar" },
+    lfo_flutter: { type: "lfo", output: "control", wave: "sine", sync: "free", rate_hz: 21, polarity: "bipolar" },
+    // A four-step pulse on the hum's level (64th notes): its slow throb.
+    throb: {
+      type: "step_seq", output: "control", sync: "loop", length: 4, step_duration: "1/64",
+      entry_value: 0.0,
+      steps: [ { step: 0, value: 0.0 }, { step: 1, value: 0.5 }, { step: 2, value: 0.25 }, { step: 3, value: 0.65 } ],
+    },
+    // A constant 1.0: routed at a fixed depth, it offsets a level (the song's per-block trims).
+    unity: { type: "step_seq", output: "control", sync: "loop", length: 1, entry_value: 1.0, steps: [ { step: 0, value: 1.0 } ] },
+    note_floor: { type: "step_seq", output: "note", sync: "loop", length: 16, orrery_role: "context", orrery_disable: true,
+                  steps: [ { step: 0, voicing: { f: { offset: -24 } } } ] },        // D2
+    note_hum:   { type: "step_seq", output: "note", sync: "loop", length: 16, orrery_role: "context", orrery_disable: true,
+                  steps: [ { step: 0, voicing: { h: { offset: -12 } } } ] },        // D3, the centre
+    note_overtones: { type: "step_seq", output: "note", sync: "loop", length: 16, orrery_role: "context", orrery_disable: false,
+                      steps: [ { step: 0, voicing: {
+                        h3:  { offset: 7,  cents_offset: 2 },    // 440.5 Hz  A4  (3 × 146.83)
+                        h5:  { offset: 16, cents_offset: -14 },  // 734.2 Hz  F#5 (the just major third)
+                        h9:  { offset: 26, cents_offset: 4 },    // 1321.5 Hz E6  (9/8)
+                        h11: { offset: 30, cents_offset: -49 },  // 1615.1 Hz the 11th harmonic, 49¢ under G#6
+                      } } ] },
+    veil_chords: { type: "step_seq", output: "note", sync: "loop", length: 16, orrery_role: "chord",
+                   steps: [ { step: 0, voicing: { v1: { offset: 0 }, v2: { offset: 4 }, v3: { offset: 7 }, v4: { offset: 11 } } } ] },
+    tick_seq: {
+      type: "step_seq", output: "note", sync: "loop", length: 16, step_duration: "1/16",
+      orrery_role: "oneshot", humanize_ms: 3,
+      phrase: { pool: ["steady", "skip", "rush"], select: "seeded" },
+    },
+  },
+
+  sequence_pools: {
+    steady: {
+      fit: "literal", tags: ["calm", "sparse"], length: 4,
+      notes: [
+        { t: 0.0, offset: -12, dur: 0.3 }, { t: 0.5, offset: 0, dur: 0.15, prob: 0.5 },
+        { t: 1.0, offset: -12, dur: 0.3 }, { t: 1.75, offset: 7, dur: 0.15, prob: 0.4 },
+        { t: 2.0, offset: -12, dur: 0.3 }, { t: 2.5, offset: 0, dur: 0.15, prob: 0.5 },
+        { t: 3.0, offset: -12, dur: 0.3 },
+      ],
+    },
+    skip: {
+      fit: "literal", tags: ["calm"], length: 2,
+      notes: [
+        { t: 0.0, offset: -12, dur: 0.35 },
+        { t: 0.75, offset: 0, dur: 0.2, prob: 0.75 },
+        { t: 1.25, offset: 7, dur: 0.2 },
+      ],
+    },
+    rush: {
+      fit: "literal", tags: ["busy"], length: 2,
+      notes: [
+        { t: 0.0,   offset: -12, dur: 0.2 }, { t: 0.25, offset: 0, dur: 0.15 }, { t: 0.5, offset: 0, dur: 0.15, prob: 0.6 },
+        { t: 1.0,   offset: -12, dur: 0.2 }, { t: 1.25, offset: 7, dur: 0.15 }, { t: 1.5, offset: 0, dur: 0.15, prob: 0.6 },
+      ],
+    },
+  },
+
+  matrix: {
+    m_swell_overtones: { source: "lfo_swell", dest: "instruments.overtones.params.cutoff_hz", kind: "mod", depth_oct: 0.6, mode: "add", depth_slew_ms: 1500 },
+    m_swell_shimmer:   { source: "lfo_swell", dest: "buses.rv.effects.verb.params.shimmer", kind: "mod", depth: 0.2, mode: "add", depth_slew_ms: 1500 },
+    m_grain_fm:        { source: "lfo_grain", dest: "instruments.hum.params.fm_index", kind: "mod", depth: 0.06, mode: "add", depth_slew_ms: 2000 },
+    m_glint:           { source: "lfo_glint", dest: "instruments.veil.params.shift_mix", kind: "mod", depth: 0.18, mode: "add", depth_slew_ms: 1500 },
+    m_flutter:         { source: "lfo_flutter", dest: "instruments.hum.params.level_db", kind: "mod", depth_db: 0.9, mode: "add" },
+    m_throb:           { source: "throb", dest: "instruments.hum.params.level_db", kind: "mod", depth_db: -5.5, mode: "add" },
+    m_floor:     { source: "note_floor",     dest: "instruments.floor.notes",     kind: "note", voices: 1, priority: 1 },
+    m_hum:       { source: "note_hum",       dest: "instruments.hum.notes",       kind: "note", voices: 1, priority: 1 },
+    m_overtones: { source: "note_overtones", dest: "instruments.overtones.notes", kind: "note", voices: 4, priority: 1 },
+    m_veil:      { source: "veil_chords",    dest: "instruments.veil.notes",      kind: "note", voices: 4, priority: 1 },
+    m_tick:      { source: "tick_seq",       dest: "instruments.tick.notes",      kind: "note", voices: 3, priority: 2 },
+  },
+
+  buses: {
+    rv: {
+      return_gain_db: -7,
+      effects: { verb: { type: "reverb", params: { room: 0.75, damping: 0.35, shimmer: 0.3, width: 0.85, predelay_ms: 22 } } },
+    },
+  },
+
+  song: {
+    matrices: {
+      settle: {
+        m_tick: null,
+        m_throb: null,
+        m_hum_trim: { source: "unity", dest: "instruments.hum.params.level_db", kind: "mod", depth_db: -1.5 },
+      },
+      deep: {
+        m_tick: null,
+        m_throb: null,
+        m_flutter: null,
+        m_hum_trim: { source: "unity", dest: "instruments.hum.params.level_db", kind: "mod", depth_db: -1.5 },
+        m_glint: { depth: 0.3 },
+        m_swell_shimmer: { depth: 0.28 },
+      },
+    },
+    sequence: [
+      { matrix: "settle", loops: 60, label: "settle" },   // 0:00:00 – 0:13:20
+      { loops: 90, label: "drift" },                       // 0:13:20 – 0:33:20  (the base matrix)
+      { matrix: "deep", loops: 90, label: "deep" },        // 0:33:20 – 0:53:20
+      { loops: 30, label: "surface", seed: 7 },            // 0:53:20 – 1:00:00
+    ],
+    transition_s: 8, // each seam glides over 8 s
+    tail_loops: 2,   // 27 s of release and shimmer ring-out
+  },
+}

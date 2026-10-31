@@ -1,0 +1,32 @@
+[package]
+name = "engines_tui"
+version = "0.9.0"
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Interactive Ratatui TUI to audition and explore a live engines_core session: realtime param table, Orrery + song state, live-edit. A desktop dev tool (like engines-play) — a pure consumer of engines_core's public API, NOT part of the portable/mobile core."
+
+[dependencies]
+# Wrap the engine via its public seams only; `playback` pulls cpal for live audio.
+engines_core = { path = "../engines_core", features = ["playback", "midi"] }
+# Terminal UI. crossterm is re-exported as `ratatui::crossterm` (no separate dep / version skew).
+ratatui = "0.29"
+# Live audio output device (mirrors the engines-play cpal path); pinned to the core's version.
+cpal = "0.15"
+# SPSC ring type of the DAW-audio-return monitor mix (ADR 0026 phase D) handed to the output
+# stream; same version as the core.
+rtrb = "0.3"
+# Navigate the telemetry's nested `operating_point` JSON mirror.
+serde_json = "1"
+# CLI parsing (the clap arg-parser crate).
+clap = { version = "4", features = ["derive"] }
+# FFT for the live spectrograms (instrument screen, ADR 0024); same crate/version as the core.
+realfft = "3"
+# Redirect our stderr to a log file so core/session (or audio/MIDI driver) warnings printed
+# to stderr can't corrupt the alternate-screen UI. macOS/Unix only (the desktop target).
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[[bin]]
+name = "engines-tui"
+path = "src/main.rs"

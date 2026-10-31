@@ -1,0 +1,37 @@
+# Labels as code: .github/labels.json is the list. On every push to main that changes it,
+# this creates the missing labels and updates colours and descriptions. It never deletes a label.
+name: Labels
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/labels.json, .github/workflows/labels.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const wanted = JSON.parse(fs.readFileSync('.github/labels.json', 'utf8'));
+            const existing = await github.paginate(github.rest.issues.listLabelsForRepo, { ...context.repo, per_page: 100 });
+            const byName = new Map(existing.map((l) => [l.name.toLowerCase(), l]));
+            for (const l of wanted) {
+              const cur = byName.get(l.name.toLowerCase());
+              if (!cur) {
+                await github.rest.issues.createLabel({ ...context.repo, name: l.name, color: l.color, description: l.description });
+                core.info(`created ${l.name}`);
+              } else if (cur.name !== l.name || cur.color.toLowerCase() !== l.color || (cur.description ?? '') !== l.description) {
+                await github.rest.issues.updateLabel({ ...context.repo, name: cur.name, new_name: l.name, color: l.color, description: l.description });
+                core.info(`updated ${l.name}`);
+              }
+            }

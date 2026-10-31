@@ -1,0 +1,121 @@
+{
+  "schema_version": "0.9",
+  "loop_id": 1,
+  "meta": {
+    "name": "shimmer showcase",
+    "note": "sparse bell plucks (a gated phrase, re-struck every loop) ringing into a long, bright octave-up shimmer reverb; the swell keeps shimmer at 0.35..0.6, inside the reverb's stable range"
+  },
+  "transport": {
+    "bpm": 48,
+    "master_steps": 8,
+    "step_unit": "beat"
+  },
+  "harmony": {
+    "root": "D",
+    "mode": "dorian"
+  },
+  "global": {
+    "master_gain_db": 0,
+    "stereo_width": 0.6
+  },
+  "instruments": {
+    "bell": {
+      "enabled": true,
+      "pitched": true,
+      "note_engine": {
+        "polyphony": 2,
+        "glide_ms": 0
+      },
+      "params": {
+        "wave": "sine_bell",
+        "level_db": -1.94,
+        "cutoff_hz": 4009.5,
+        "attack_s": 0,
+        "decay_s": 0.66,
+        "sustain": 0.0,
+        "release_s": 0.48
+      },
+      "sends_db": {
+        "rv": 0
+      }
+    }
+  },
+  "modulators": {
+    "plucks": {
+      "type": "step_seq",
+      "output": "note",
+      "sync": "loop",
+      "length": 8,
+      "step_duration": "1/8",
+      "phrase": {
+        "pool": [
+          "bells"
+        ],
+        "active": "bells"
+      }
+    },
+    "swell": {
+      "type": "lfo",
+      "output": "control",
+      "wave": "sine",
+      "sync": "free",
+      "rate_hz": 0.05,
+      "polarity": "unipolar"
+    }
+  },
+  "matrix": {
+    "m_plucks": {
+      "source": "plucks",
+      "dest": "instruments.bell.notes",
+      "kind": "note",
+      "voices": 1,
+      "priority": 1
+    },
+    "m_shimmer": {
+      "source": "swell",
+      "dest": "buses.rv.effects.verb.params.shimmer",
+      "kind": "mod",
+      "depth": 0.25,
+      "mode": "add"
+    }
+  },
+  "buses": {
+    "rv": {
+      "return_gain_db": -3.1,
+      "effects": {
+        "verb": {
+          "type": "reverb",
+          "params": {
+            "room": 0.88,
+            "damping": 0.18,
+            "shimmer": 0.35,
+            "width": 0.85,
+            "predelay_ms": 28.0
+          }
+        }
+      }
+    }
+  },
+  "sequence_pools": {
+    "bells": {
+      "length": 8,
+      "notes": [
+        {
+          "t": 0,
+          "offset": 12,
+          "dur": 0.5
+        },
+        {
+          "t": 3,
+          "offset": 19,
+          "dur": 0.5
+        },
+        {
+          "t": 5,
+          "offset": 16,
+          "dur": 0.5
+        }
+      ]
+    }
+  }
+}

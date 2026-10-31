@@ -1,0 +1,113 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Engines Loop Doc (JSON5)",
+  "scopeName": "source.json5.engines",
+  "patterns": [{ "include": "#comments" }, { "include": "#value" }],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.json5",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "captures": { "0": { "name": "punctuation.definition.comment.json5" } }
+        },
+        {
+          "name": "comment.line.double-slash.json5",
+          "match": "(//).*$",
+          "captures": { "1": { "name": "punctuation.definition.comment.json5" } }
+        }
+      ]
+    },
+    "value": {
+      "patterns": [
+        { "include": "#object" },
+        { "include": "#array" },
+        { "include": "#string-double" },
+        { "include": "#string-single" },
+        { "include": "#number" },
+        { "include": "#constant" }
+      ]
+    },
+    "constant": {
+      "name": "constant.language.json5",
+      "match": "\\b(?:true|false|null)\\b"
+    },
+    "number": {
+      "name": "constant.numeric.json5",
+      "match": "(?<![\\w$])[+-]?(?:Infinity|NaN|0[xX][0-9A-Fa-f]+|(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?)(?![\\w$])"
+    },
+    "escape": {
+      "patterns": [
+        { "name": "constant.character.escape.json5", "match": "\\\\(?:u[0-9A-Fa-f]{4}|x[0-9A-Fa-f]{2}|[^ux\\r\\n]|$)" },
+        { "name": "invalid.illegal.unrecognized-escape.json5", "match": "\\\\." }
+      ]
+    },
+    "string-double": {
+      "name": "string.quoted.double.json5",
+      "begin": "\"",
+      "end": "\"|(?<![\\\\\\n])$",
+      "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.json5" } },
+      "endCaptures": { "0": { "name": "punctuation.definition.string.end.json5" } },
+      "patterns": [{ "include": "#escape" }]
+    },
+    "string-single": {
+      "name": "string.quoted.single.json5",
+      "begin": "'",
+      "end": "'|(?<![\\\\\\n])$",
+      "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.json5" } },
+      "endCaptures": { "0": { "name": "punctuation.definition.string.end.json5" } },
+      "patterns": [{ "include": "#escape" }]
+    },
+    "object": {
+      "name": "meta.structure.dictionary.json5",
+      "begin": "\\{",
+      "end": "\\}",
+      "beginCaptures": { "0": { "name": "punctuation.definition.dictionary.begin.json5" } },
+      "endCaptures": { "0": { "name": "punctuation.definition.dictionary.end.json5" } },
+      "patterns": [
+        { "include": "#comments" },
+        {
+          "name": "support.type.property-name.json5",
+          "begin": "\"",
+          "end": "\"|(?<![\\\\\\n])$",
+          "beginCaptures": { "0": { "name": "punctuation.support.type.property-name.begin.json5" } },
+          "endCaptures": { "0": { "name": "punctuation.support.type.property-name.end.json5" } },
+          "patterns": [{ "include": "#escape" }]
+        },
+        {
+          "name": "support.type.property-name.json5",
+          "begin": "'",
+          "end": "'|(?<![\\\\\\n])$",
+          "beginCaptures": { "0": { "name": "punctuation.support.type.property-name.begin.json5" } },
+          "endCaptures": { "0": { "name": "punctuation.support.type.property-name.end.json5" } },
+          "patterns": [{ "include": "#escape" }]
+        },
+        {
+          "name": "support.type.property-name.json5",
+          "match": "(?:[\\p{L}\\p{Nl}$_]|\\\\u[0-9A-Fa-f]{4})(?:[\\p{L}\\p{Nl}\\p{Mn}\\p{Mc}\\p{Nd}\\p{Pc}$_\\x{200C}\\x{200D}]|\\\\u[0-9A-Fa-f]{4})*"
+        },
+        {
+          "name": "meta.structure.dictionary.value.json5",
+          "begin": ":",
+          "end": "(,)|(?=\\})",
+          "beginCaptures": { "0": { "name": "punctuation.separator.dictionary.key-value.json5" } },
+          "endCaptures": { "1": { "name": "punctuation.separator.dictionary.pair.json5" } },
+          "patterns": [{ "include": "#comments" }, { "include": "#value" }]
+        }
+      ]
+    },
+    "array": {
+      "name": "meta.structure.array.json5",
+      "begin": "\\[",
+      "end": "\\]",
+      "beginCaptures": { "0": { "name": "punctuation.definition.array.begin.json5" } },
+      "endCaptures": { "0": { "name": "punctuation.definition.array.end.json5" } },
+      "patterns": [
+        { "include": "#comments" },
+        { "include": "#value" },
+        { "name": "punctuation.separator.array.json5", "match": "," }
+      ]
+    }
+  }
+}

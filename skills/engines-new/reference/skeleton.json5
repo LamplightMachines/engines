@@ -1,0 +1,59 @@
+// ─────────────────────────────────────────────────────────────────────────────
+//  __TITLE__ — __IDEA__
+//
+//  Voices: __VOICE_SHEET__
+//  Loop: __MASTER_STEPS__ beats at __BPM__ bpm = __LOOP_SECONDS__ s.
+//  Levers: density __DENSITY__ · brightness __BRIGHTNESS__ · structure __STRUCTURE__ · mood __MODE__.
+//
+//  Play: open this file in VS Code and press ▶ (status bar or editor title). Edit, then save (⌘S)
+//  to hear the change about 0.2 s later.
+// ─────────────────────────────────────────────────────────────────────────────
+{
+  schema_version: "0.9",
+  loop_id: 1,
+
+  // ── Control (copied from the defaults; the piece owns them from here) ──
+  // The timbre axis: "drift" = a bounded walk around the written values, so hours of music keep
+  // breathing; "hold" freezes them (free LFOs and sequences still move).
+  optimize: "drift",
+  // Drift caps, normalized 0..1: one loop moves a param at most `max_change`; over the whole
+  // session it stays within ±`max_drift` of its written value.
+  max_change: 0.05,
+  max_drift: 0.15,
+  // The Orrery (generative harmony). Bind voices with `orrery_role` on their note modulators
+  // (chord / bass / arp / oneshot / context); a doc with no roles leaves the Orrery idle.
+  movement: {
+    orrery: true,
+    phrase_loops: 2,        // a chord change at most every 2 loops
+    tension_target: 0.25,   // 0 = stay on the tonic … 1 = roam to borrowed chords
+    tension_max: 0.6,
+    home: "global",
+    arrange: { return_hazard_scale: 1.0 },
+  },
+  // JSONPath → { min, max } in native units: drift reflects off the edges; min == max freezes a
+  // param (a level balanced by ear). None to start.
+  constraints: {},
+
+  // ── Time and key ──
+  transport: { bpm: 60, master_steps: 16, step_unit: "beat", swing: 0.0, timing_jitter_ms: 8 },
+  harmony: { root: "D", mode: "dorian" },
+
+  // ── Mix ──
+  global: { master_gain_db: -6, stereo_width: 0.5 },
+
+  // The reverb send bus. Parts send into the doc's first bus, so it comes before them;
+  // `return_gain_db` defaults to silent, so it is set here.
+  buses: {
+    rv: {
+      return_gain_db: -12,
+      effects: {
+        verb: { type: "reverb", params: { room: 0.6, damping: 0.5, shimmer: 0, width: 0.6, predelay_ms: 20 } },
+      },
+    },
+  },
+
+  // Filled by `engines-part add` and hand-written voices.
+  instruments: {},
+  modulators: {},
+  matrix: {},
+}

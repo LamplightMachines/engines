@@ -1,0 +1,544 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://engines.invalid/contracts/capability_catalog_v2.schema.json",
+  "title": "Capability catalog v2",
+  "description": "What the engine can do, as data (ADR 0050 D6): `engines-check --catalog --json`. Generated from the engine's registries (engines_core::catalog) and parity-tested against them, the loop schema and renders, so a tool's unit conversions and a mapping guide can't drift from the engine. Numbers are f32 in the engine. v2 (ADR 0054, schema v0.9): a param's `unit`, `range`, `safe_default` and `default` are native (Hz, s, dB, …), a route into it writes `depth_key` in its unit, and the JSON is the engine's doc writer's — a silent gain's default reads -Infinity (Python's json takes it; read it as JSON5 elsewhere).",
+  "type": "object",
+  "required": [
+    "catalog_version",
+    "schema_version",
+    "engine_version",
+    "engine_build",
+    "hash",
+    "synth_types",
+    "params",
+    "effects",
+    "global",
+    "buses",
+    "unit_maps",
+    "harmony",
+    "modulators"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "catalog_version": {
+      "const": 2,
+      "description": "the catalog's shape version; a consumer refuses one it doesn't know"
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "the loop-doc schema version this engine reads (contracts/loop_contract_v<version>.schema.json)"
+    },
+    "engine_version": {
+      "type": "string",
+      "description": "engines_core's crate version"
+    },
+    "engine_build": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\+(g[0-9a-f]{12}(\\.dirty)?|unknown)$",
+      "description": "the engine build (ADR 0054 P10): `<version>+g<12-hex commit>`, `.dirty` when the engine's sources differed from it, `+unknown` without git; not part of `hash`"
+    },
+    "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{16}$",
+      "description": "FNV-1a 64 (hex) of the catalog's compact JSON with `hash` and `engine_build` empty — changes iff the content does (a cache key)"
+    },
+    "synth_types": {
+      "type": "object",
+      "description": "Instrument `type`s (ADR 0009, 0026, 0047), keyed by name.",
+      "additionalProperties": {
+        "$ref": "#/$defs/synthType"
+      }
+    },
+    "params": {
+      "type": "object",
+      "description": "Instrument params (`instruments.<id>.params.<leaf>`), keyed by leaf. Which ones a type reads is in `synth_types`.",
+      "additionalProperties": {
+        "$ref": "#/$defs/param"
+      }
+    },
+    "effects": {
+      "type": "object",
+      "description": "Bus effect types (`buses.<bus>.effects.<fx>.type`), keyed by type.",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "params"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "params": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/$defs/param"
+            }
+          }
+        }
+      }
+    },
+    "global": {
+      "type": "object",
+      "description": "`global.<leaf>`.",
+      "additionalProperties": {
+        "$ref": "#/$defs/param"
+      }
+    },
+    "buses": {
+      "type": "object",
+      "description": "`buses.<id>.<leaf>`.",
+      "additionalProperties": {
+        "$ref": "#/$defs/param"
+      }
+    },
+    "unit_maps": {
+      "type": "object",
+      "description": "How a param's number becomes a physical quantity, keyed by map id (a param names its maps in `unit_maps`).",
+      "additionalProperties": {
+        "$ref": "#/$defs/unitMap"
+      }
+    },
+    "harmony": {
+      "type": "object",
+      "required": [
+        "roots",
+        "modes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "roots": {
+          "type": "array",
+          "description": "The `harmony.root` spellings the engine accepts.",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "semitone"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "semitone": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 11
+              }
+            }
+          }
+        },
+        "modes": {
+          "type": "array",
+          "description": "The `harmony.mode`s.",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "degrees",
+              "aliases"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "degrees": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 11
+                },
+                "description": "semitones above the root, degree 1 first"
+              },
+              "aliases": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "other spellings `harmony.mode` accepts"
+              }
+            }
+          }
+        }
+      }
+    },
+    "modulators": {
+      "type": "object",
+      "description": "The string choices of modulators and matrix routes.",
+      "required": [
+        "type",
+        "output",
+        "sync",
+        "lfo_wave",
+        "lfo_polarity",
+        "interp",
+        "generator",
+        "pitch_walk_order",
+        "orrery_role",
+        "route_kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/choice"
+        },
+        "output": {
+          "$ref": "#/$defs/choice"
+        },
+        "sync": {
+          "$ref": "#/$defs/choice"
+        },
+        "lfo_wave": {
+          "$ref": "#/$defs/choice",
+          "description": "an LFO's `wave` (anything else plays as a sine)"
+        },
+        "lfo_polarity": {
+          "$ref": "#/$defs/choice"
+        },
+        "interp": {
+          "$ref": "#/$defs/choice",
+          "description": "a control step_seq's `interp` (absent ⇒ stepped)"
+        },
+        "generator": {
+          "$ref": "#/$defs/choice",
+          "description": "a step_seq `generator.kind`"
+        },
+        "pitch_walk_order": {
+          "$ref": "#/$defs/choice"
+        },
+        "orrery_role": {
+          "$ref": "#/$defs/choice"
+        },
+        "route_kind": {
+          "$ref": "#/$defs/choice",
+          "description": "a matrix route's `kind`"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "range": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "synthType": {
+      "type": "object",
+      "required": [
+        "default",
+        "audio",
+        "free_form",
+        "params",
+        "variants",
+        "note"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "default": {
+          "type": "boolean",
+          "description": "what an instrument without `type` gets"
+        },
+        "audio": {
+          "type": "boolean",
+          "description": "false for `midi`: notes and CCs go to an external synth; nothing renders"
+        },
+        "free_form": {
+          "type": "boolean",
+          "description": "`midi`: any param name holds a value (a CC source), so every name applies"
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "the params it reads with a pitched oscillator (`wave`/`source` not filtered_noise)"
+        },
+        "variants": {
+          "type": "object",
+          "description": "Where a noise source reads a different set: `filtered_noise` (`source: \"filtered_noise\"`) and `pitched_noise` (plus `pitched: true`, ADR 0046). Only the variants that differ are listed: no `pitched_noise` ⇒ same as `filtered_noise`; neither ⇒ same as `params`.",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "note": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "what the param lists can't say (e.g. dual reads `wave` only to choose filtered_noise)"
+        },
+        "materials": {
+          "type": "object",
+          "description": "`modal` only: each `material`'s partials; the first `num_modes` of them ring.",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "ratio",
+                "amp",
+                "decay_rel"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "ratio": {
+                  "type": "number",
+                  "description": "frequency ratio to the note"
+                },
+                "amp": {
+                  "type": "number",
+                  "description": "relative amplitude at the strike"
+                },
+                "decay_rel": {
+                  "type": "number",
+                  "description": "ring time relative to the fundamental's T60 (unit map t60_s)"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "param": {
+      "type": "object",
+      "required": [
+        "path",
+        "kind",
+        "value_type",
+        "range",
+        "safe_default",
+        "default",
+        "modulatable",
+        "depth_key",
+        "depth_span",
+        "glideable",
+        "options",
+        "unit",
+        "display_unit",
+        "unit_maps",
+        "description"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "its JSONPath, ids as <id> / <bus> / <fx>"
+        },
+        "kind": {
+          "enum": [
+            "continuous",
+            "categorical",
+            "int_steps",
+            "fixed",
+            "enum"
+          ],
+          "description": "how the drift controller treats it: continuous (drifted across `range`), categorical (flipped among `options`), int_steps (±1 steps), fixed (never moved by the controller), enum (a string the controller never touches)"
+        },
+        "value_type": {
+          "enum": [
+            "number",
+            "integer",
+            "string"
+          ]
+        },
+        "range": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/range"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the authored range in `unit`; null for strings (a gain may also be -Infinity)"
+        },
+        "safe_default": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/range"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the Tier-2 band the controller stays inside (ADR 0011) when narrower than `range`"
+        },
+        "default": {
+          "type": [
+            "number",
+            "string",
+            "null"
+          ],
+          "description": "what the engine reads when the param is omitted, in `unit` — where a route into an omitted param starts too; proven by render. -Infinity for a silent gain (osc_b_level_db, return_gain_db); null when there's no single value (root_hz: absent ⇒ the note's pitch)"
+        },
+        "modulatable": {
+          "type": "boolean",
+          "description": "a matrix `mod` route into it moves it"
+        },
+        "depth_key": {
+          "enum": [
+            "depth",
+            "depth_oct",
+            "depth_st",
+            "depth_cents",
+            "depth_s",
+            "depth_ms",
+            "depth_db",
+            "depth_hz",
+            "depth_x",
+            null
+          ],
+          "description": "the key a route into it writes its depth under (ADR 0054 P4); null when it isn't modulatable"
+        },
+        "depth_span": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "how much of the depth's unit (octaves for a log curve) one unit of normalized depth covers — the param's span; null when it isn't modulatable"
+        },
+        "glideable": {
+          "type": "boolean",
+          "description": "a song seam glides it between blocks (else it steps, ADR 0029)"
+        },
+        "options": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "the values a string param takes"
+        },
+        "unit": {
+          "enum": [
+            "hz",
+            "s",
+            "ms",
+            "semitones",
+            "cents",
+            "ratio",
+            "db",
+            "normalized",
+            "count",
+            null
+          ],
+          "description": "what an authored number means (schema v0.9: native): hz, s, ms, semitones, cents, ratio, db (-Infinity = silent for a gain), normalized (a unitless 0..1) or count; null for strings"
+        },
+        "display_unit": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "the unit the editor shows (Hz, s, st, ms, ¢, ×, dB, 0..1)"
+        },
+        "unit_maps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "keys of `unit_maps` that read this param"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "the loop schema's description"
+        }
+      }
+    },
+    "unitMap": {
+      "type": "object",
+      "description": "normalized (the engine's 0..1, where drift steps and route depths add) ↔ a native unit, or a unitless param's DSP reading. x (in `from`) → y (in `to`). exp: y = lo·(hi/lo)^x, x in 0..1. log: y = ln(x/lo)/ln(hi/lo) clamped to 0..1 — an exp map's inverse, x in `from` units. linear: y = hi·x (lo = 0), x in 0..1. affine: y = lo + (hi − lo)·x, x in 0..1.",
+      "required": [
+        "kind",
+        "from",
+        "to",
+        "lo",
+        "hi",
+        "source",
+        "params",
+        "note",
+        "samples"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "exp",
+            "log",
+            "linear",
+            "affine"
+          ]
+        },
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "lo": {
+          "type": "number"
+        },
+        "hi": {
+          "type": "number"
+        },
+        "source": {
+          "type": "string",
+          "description": "the engine function or constant it comes from"
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "note": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "samples": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/range"
+          },
+          "description": "[x, y] pairs computed by `source` — a consumer checks its own conversion against them"
+        }
+      }
+    },
+    "choice": {
+      "type": "object",
+      "required": [
+        "options",
+        "default"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "default": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "what an omitted key gets; null: no default (the key is required where it matters)"
+        }
+      }
+    }
+  }
+}

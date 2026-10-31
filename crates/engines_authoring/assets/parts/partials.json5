@@ -1,0 +1,36 @@
+// Overtones of the root, just-tuned: harmonics 3, 4 and 6 of the root two octaves down (the fifth
+// above the octave, the double octave, the fifth above that), each `cents_offset`-pulled onto the
+// exact harmonic so they fuse with a drone instead of reading as a chord. Fifths and octaves only:
+// at home in every mode but locrian.
+{
+  part: { summary: "just partials — three held triangle voices on the root's 3rd, 4th and 6th harmonics" },
+  instruments: {
+    // Three held triangle voices, no detune — exact fusion is the point. Sent well into the reverb.
+    $id: {
+      enabled: true, pitched: true,
+      note_engine: { polyphony: 3, glide_ms: 0 },
+      params: { wave: "triangle", voices_detune_cents: 0, level_db: -15.92, cutoff_hz: 1007.1, resonance: 0.0,
+                attack_s: 2.4, decay_s: 0.9, sustain: 0.85, release_s: 3.6 },
+      sends_db: { $bus: -6.94 },
+    },
+  },
+  modulators: {
+    // Offsets from the root (octave 4): h3 = the fifth an octave down, +2¢; h4 = the root; h6 = the
+    // fifth, +2¢ (3/2 is 702¢, tempered is 700).
+    $id_notes: {
+      type: "step_seq", output: "note", sync: "loop", length: 16, orrery_role: "context",
+      steps: [ { step: 0, voicing: {
+        h3: { offset: -5, cents_offset: 2 },
+        h4: { offset: 0 },
+        h6: { offset: 7, cents_offset: 2 },
+      } } ],
+    },
+  },
+  matrix: {
+    // The partials' note route.
+    m_$id: { source: "$id_notes", dest: "instruments.$id.notes", kind: "note", voices: 3, priority: 1 },
+  },
+  safe_bounds: {
+    "instruments.$id.params.level_db": { min: -15.92, max: -15.92 },
+  },
+}

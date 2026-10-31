@@ -1,0 +1,35 @@
+// A quiet, slow pad on the mode's own colours — the fifth below, the root, the third, the fifth —
+// sent hard to the reverb. The `chord` role: under the Orrery it's re-voiced with each chord
+// (stable voice ids, so it glides); in a plain render it holds this voicing.
+{
+  part: { summary: "halo pad — a slow detuned pad on 5·1·3·5 of the mode, Orrery chord role, wet" },
+  instruments: {
+    // Slow in, slow out, gliding between voicings; quiet, and mostly reverb.
+    $id: {
+      enabled: true, pitched: true,
+      note_engine: { polyphony: 4, glide_ms: 900 },
+      params: { wave: "saw_soft", voices_detune: 0.04, level: 0.11, cutoff: 0.5, resonance: 0.12,
+                attack: 0.8, decay: 0.3, sustain: 0.75, release: 0.9 },
+      sends: { $bus: 0.8 },
+    },
+  },
+  modulators: {
+    // Home voicing: the fifth below, the root, the mode's third, the fifth. Stable voice ids ⇒ glides.
+    $id_chords: {
+      type: "step_seq", output: "note", sync: "loop", length: 16, orrery_role: "chord",
+      steps: [ { step: 0, voicing: {
+        v1: { offset: "$deg(5, -1)" },
+        v2: { offset: "$deg(1)" },
+        v3: { offset: "$deg(3)" },
+        v4: { offset: "$deg(5)" },
+      } } ],
+    },
+  },
+  matrix: {
+    // The halo's note route.
+    m_$id: { source: "$id_chords", dest: "instruments.$id.notes", kind: "note", voices: 4, priority: 1 },
+  },
+  safe_bounds: {
+    "instruments.$id.params.level": { min: 0.11, max: 0.11 },
+  },
+}

@@ -1,0 +1,93 @@
+{
+    "schema_version": "0.9",
+    "loop_id": 77,
+    "meta": { "notes": "phrase-arm behavior fixture (ADR 0028): routed + audible — sub-step onsets, gates, legato glide, holds, prob, velocity, seeded/cycle selection, free-run seam" },
+    "transport": {
+        "bpm": 120,
+        "master_steps": 4,
+        "step_unit": "beat",
+        "swing": 0.0,
+        "timing_jitter_ms": 0
+    },
+    "harmony": { "root": "C", "mode": "ionian" },
+    "global": { "master_gain_db": -6.02, "stereo_width": 0.4 },
+    "instruments": {
+        "poly": {
+            "enabled": true,
+            "pitched": true,
+            "note_engine": { "polyphony": 6, "glide_ms": 120 },
+            "params": { "wave": "saw_soft", "level_db": -9.12, "cutoff_hz": 800 },
+            "sends_db": { "rv": 0 }
+        },
+        "ext": {
+            "type": "midi",
+            "enabled": true,
+            "velocity_default": 96,
+            "note_engine": { "polyphony": 4 },
+            "routing": { "channel": 1, "cc": {} }
+        }
+    },
+    "modulators": {
+        "ph": {
+            "type": "step_seq", "output": "note", "sync": "free",
+            "length": 8, "step_duration": "1/8",
+            "phrase": { "pool": ["cell_a", "cell_b"], "select": "cycle" }
+        },
+        "ph_midi": {
+            "type": "step_seq", "output": "note", "sync": "loop",
+            "length": 8, "step_duration": "1/8",
+            "phrase": { "pool": ["cell_a"], "active": "cell_a" }
+        },
+        "slurred": {
+            "type": "step_seq", "output": "note", "sync": "loop",
+            "length": 8, "step_duration": "1/8",
+            "phrase": { "pool": ["slur"], "active": "slur" }
+        },
+        "pad_hold": {
+            "type": "step_seq", "output": "note", "sync": "loop",
+            "length": 8, "step_duration": "1/8",
+            "phrase": { "pool": ["hold"], "active": "hold" }
+        }
+    },
+    "sequence_pools": {
+        "cell_a": {
+            "tags": ["busy"],
+            "length": 4,
+            "notes": [
+                { "t": 0, "offset": 0, "dur": 0.5, "velocity": 112 },
+                { "t": 1.5, "offset": 7, "dur": 0.5, "velocity": 64 },
+                { "t": 2, "offset": 12, "dur": 1.0 },
+                { "t": 3.5, "offset": 16, "dur": 0.4, "prob": 0.5 }
+            ]
+        },
+        "cell_b": {
+            "tags": ["calm"],
+            "length": 4,
+            "notes": [
+                { "t": 0.5, "offset": 4, "dur": 0.5 },
+                { "t": 2.5, "offset": 11, "dur": 0.5 }
+            ]
+        },
+        "slur": {
+            "tags": ["calm"],
+            "length": 8,
+            "notes": [
+                { "t": 0, "offset": 12 },
+                { "t": 2, "offset": 7, "legato": true },
+                { "t": 4, "offset": 14, "legato": true, "dur": 2.0 }
+            ]
+        },
+        "hold": {
+            "tags": ["drone"],
+            "length": 8,
+            "notes": [{ "t": 0, "offset": -12 }]
+        }
+    },
+    "matrix": {
+        "m_ph": { "source": "ph", "dest": "instruments.poly.notes", "kind": "note", "voices": 4, "priority": 2 },
+        "m_slur": { "source": "slurred", "dest": "instruments.poly.notes", "kind": "note", "voices": 1, "priority": 3 },
+        "m_hold": { "source": "pad_hold", "dest": "instruments.poly.notes", "kind": "note", "voices": 1, "priority": 1 },
+        "m_midi": { "source": "ph_midi", "dest": "instruments.ext.notes", "kind": "note", "voices": 4, "priority": 1 }
+    },
+    "buses": { "rv": { "return_gain_db": -20, "effects": { "verb": { "type": "reverb", "params": { "room": 0.5, "damping": 0.5, "shimmer": 0, "width": 0.5, "predelay_ms": 0 } } } } }
+}

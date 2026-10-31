@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check-piece-doc.sh",
+            "timeout": 60,
+            "statusMessage": "engines-check on the piece doc"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,1536 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://engines.invalid/contracts/loop_contract_v0.9.schema.json",
+  "title": "Loop document v0.9 (CE-R5.1)",
+  "description": "The complete intended CONTROL state for the next loop, rendered by the Rust engine (crates/engines_core/src/loop_doc.rs). v0.9 (ADR 0054) writes every param in its native unit under a unit-suffixed key — `cutoff_hz`, `attack_s`, `level_db` (-Infinity = silent), `voices_detune_cents`, `shift_st`, `predelay_ms` — and a route's depth in its dest's unit (`depth_oct`, `depth_db`, …); the unitless levers stay 0..1. `global.reverb_mix` is gone (a doc without buses plays dry). `engines-migrate` converts a v0.8 doc. v0.8 (ADR 0010) added top-level `safe_bounds` (Tier-2 per-param controllable ranges; canonical defaults in `x-safe-bounds-defaults`) and per-modulator `orrery_role`; ADR 0025 adds `max_change`/`max_drift`; ADR 0026 adds the `midi` instrument type (external-MIDI translator: `routing`, `velocity_default`, per-voice `velocity`); ADR 0028 adds per-voice sub-step onset `t`, top-level `sequence_pools`, and the modulator `phrase` arm (steps ⊕ generator ⊕ phrase); ADR 0029 adds the optional top-level `song` (a sequence of matrix-configuration blocks). ADR 0033 adds the piece's own control settings — top-level `optimize`, `movement` (the Orrery) and `constraints` (Tier-3 bands) — so a piece is self-contained; CLI flags / an objectives doc override them. Carried over from v0.7: `modulators`/`matrix`/per-step `voicing` are id-keyed objects; `steps`/`pitch_walk.pool` stay arrays; a matrix `dest` is a full JSONPath. Annotated source: doc/loop_contract_v0.9.json5. Note offsets are semitones from harmony.root at octave 4. MIDI `velocity`/`velocity_default` are native 0..127. `x-silence: true` marks the numbers that may be -Infinity (the gains, a band's min).",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "transport",
+    "harmony"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "0.9"
+    },
+    "loop_id": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "monotonic; also the root RNG seed (prob rolls, noise) — deterministic per id"
+    },
+    "meta": {
+      "type": "object",
+      "description": "free-form provenance/telemetry; not interpreted by the engine"
+    },
+    "transport": {
+      "type": "object",
+      "required": [
+        "bpm",
+        "master_steps"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "bpm": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "master_steps": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "loop length in steps; loop seconds = master_steps * 60/bpm"
+        },
+        "step_unit": {
+          "type": "string",
+          "default": "beat"
+        },
+        "swing": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "delay every ODD on-grid step by swing·step/3 (1 = the offbeat sits on the 2/3 triplet point). Sub-step (fractional t) onsets are authored micro-timing and never swing (ADR 0028)"
+        },
+        "timing_jitter_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "humanize: every note onset shifts by a deterministic seeded offset in ±this many ms (adds to the modulator's humanize_ms; a gated note's off rides its onset) (ADR 0028)"
+        }
+      }
+    },
+    "harmony": {
+      "type": "object",
+      "required": [
+        "root",
+        "mode"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "root": {
+          "type": "string",
+          "pattern": "^[A-Ga-g](#|b)?$",
+          "description": "note name; e.g. C, F#, Bb"
+        },
+        "mode": {
+          "type": "string",
+          "description": "scale label for scale-aware features (e.g. dorian); does not constrain chord offsets"
+        }
+      }
+    },
+    "global": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "master_gain_db": {
+          "type": "number",
+          "minimum": -60,
+          "maximum": 6,
+          "x-silence": true,
+          "default": 0.0,
+          "description": "the master out's gain in dB (−60..+6, -Infinity silent; no limiter follows — ADR 0021)"
+        },
+        "stereo_width": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.5
+        }
+      }
+    },
+    "instruments": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/instrument"
+      }
+    },
+    "modulators": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/modulator"
+      }
+    },
+    "matrix": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/matrixEntry"
+      }
+    },
+    "buses": {
+      "type": "object",
+      "description": "Send-bus / effects framework. Instruments route a `sends_db` level into a bus; the bus runs a fundsp-graph effects chain and returns its wet signal to the master at `return_gain_db`. Param JSONPaths (e.g. buses.<bus>.effects.<fx>.params.room) are controller-steerable.",
+      "additionalProperties": {
+        "$ref": "#/$defs/bus"
+      }
+    },
+    "sequence_pools": {
+      "type": "object",
+      "description": "Predefined melodic phrases (ADR 0028), id-keyed — the doc-local sequence pool. A note modulator plays them via its `phrase` arm; `lib:<name>` pool refs resolve to the built-in library instead (same shape — entries copy-paste between the two). Ids starting with lib: are reserved.",
+      "additionalProperties": {
+        "$ref": "#/$defs/phraseDef"
+      }
+    },
+    "safe_bounds": {
+      "type": "object",
+      "description": "Tier-2 SAFE BOUNDS (ADR 0010): JSONPath -> {min,max} in NATIVE units — the hard controllable range the controller must never exceed. Overrides the canonical per-param defaults (see x-safe-bounds-defaults); absent params fall back to those. Example key: global.master_gain_db -> min −8, max 0. A route depth's key is its depth key (matrix.<id>.depth_oct).",
+      "additionalProperties": {
+        "$ref": "#/$defs/constraintBand"
+      }
+    },
+    "max_change": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "PER-LOOP step cap |δ| in normalized 0..1 (ADR 0025). Authored default; the runtime `--max-change` overrides it, else the controller default 0.05."
+    },
+    "max_drift": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "CUMULATIVE drift cap (ADR 0025): the half-width in normalized 0..1 that drift may move a param from its authored value over the whole session (max_change bounds one loop; max_drift bounds the total). Default 0.15. A param-specific `constraints` band or objectives `override` takes precedence over this; the Tier-2 safe range is still the hard cap."
+    },
+    "optimize": {
+      "enum": [
+        "hold",
+        "drift",
+        "live_edit"
+      ],
+      "description": "The piece's timbre axis (ADR 0033; CE-R8.1): `hold` freezes the authored values (free modulators still breathe), `drift` is the bounded reflecting walk (ADR 0032), `live_edit` = no drift while hand-editing. Absent with `movement`/`constraints` also absent ⇒ the session's own default (drift). CLI `--optimize` and an `--objectives` file override it."
+    },
+    "movement": {
+      "$ref": "#/$defs/movement",
+      "description": "The piece's musical-movement axis (ADR 0033): the Orrery on/off + its config — same shape as the objectives doc's `movement`. CLI `--orrery` switches it on; an `--objectives` file replaces it. Live edits to it apply at the next loop with the Orrery's state kept."
+    },
+    "constraints": {
+      "type": "object",
+      "description": "The piece's Tier-3 runtime constraint bands (ADR 0033), JSONPath -> {min,max} in NATIVE units: a param outside its band is driven back at <= max_change, and drift reflects off the band edges (ADR 0032). Freeze a param with min == max. Tighter than safe_bounds (the Tier-2 hard cap).",
+      "additionalProperties": {
+        "$ref": "#/$defs/constraintBand"
+      }
+    },
+    "song": {
+      "type": "object",
+      "description": "Song form (ADR 0029): a 'loop of loops'. An ordered `sequence` of blocks, each a MATRIX configuration (the top-level `matrix` with a named layer from `matrices` merged over it by route id — RFC 7386: a field overrides, null removes, a full entry adds) lasting `loops` inner loops. The controller (drift + the Orrery) resets at each block start; the song ends after the last block + `tail_loops`. Blocks change the matrix and, through an optional `control`, the session control (ADR 0055: the Orrery off or retuned, hold or drift, per-param drift overrides); instruments, modulators, harmony, transport and globals are fixed for the whole song.",
+      "required": [
+        "sequence"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "matrices": {
+          "type": "object",
+          "description": "named matrix layers: layer name → { route id → matrix-entry patch | null }",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/matrixEntryPatch"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "sequence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/songBlock"
+          }
+        },
+        "transition_s": {
+          "type": "number",
+          "minimum": 0,
+          "default": 8,
+          "description": "seam glide seconds (params ease back to the new block's authored values; routes fade in/out; un-routed notes release). 0 = hard cut. Must not exceed the shortest block."
+        },
+        "tail_loops": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 1,
+          "description": "loops after the last block with every note route dropped, so releases + reverb ring out before the song ends"
+        }
+      }
+    }
+  },
+  "x-safe-bounds-defaults": {
+    "master_gain_db": {
+      "min": -8.0,
+      "max": 0.0
+    },
+    "cutoff_hz": {
+      "min": 101.0,
+      "max": 8000.0
+    },
+    "level_db": {
+      "min": -26.0,
+      "max": 0.0
+    },
+    "return_gain_db": {
+      "min": -60.0,
+      "max": 0.0
+    },
+    "osc_a_level_db": {
+      "min": -60.0,
+      "max": 0.0
+    },
+    "osc_b_level_db": {
+      "min": -60.0,
+      "max": 0.0
+    },
+    "sends_db": {
+      "min": -60.0,
+      "max": 0.0
+    },
+    "fm_feedback": {
+      "min": 0.0,
+      "max": 0.95
+    }
+  },
+  "$defs": {
+    "instrument": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "subtractive",
+            "dual",
+            "modal",
+            "midi",
+            "binaural"
+          ],
+          "default": "subtractive",
+          "description": "Synth type (ADR 0009). subtractive (default, absent ⇒ subtractive): one oscillator + shared filter/ADSR. dual: two oscillators (Hydrasynth-style), each to the mixer at its own level; osc B can phase-modulate osc A (DX-style PM + feedback). modal: parallel decaying-resonator bank for struck objects (marimba/vibraphone/tuning-fork/resonators), intrinsic decay. midi (ADR 0026): an external-MIDI translator — produces NO audio; its note events become Note-On/Off and its effective (post-modulation) params become CC, per its required `routing`. binaural (ADR 0047): a binaural-beat drone — two subtractive voices, the left hard LEFT at root − spread_hz/2 and the right hard RIGHT at root + spread_hz/2 (root = `root_hz` when set, else the note), sharing every subtractive param; its dry output bypasses the master `stereo_width` (headphones). Never dithered (it changes per-voice state shape; midi params additionally lack a −δ counterfactual)."
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "pitched": {
+          "type": "boolean",
+          "default": true,
+          "description": "On a filtered_noise instrument, true turns on the note's band (ADR 0046): the band_lo..band_hi noise goes on through a band-pass at each voice's note, falling 24 dB/oct either side, with `resonance` raising the note toward a whistle. Leave it out (or false) for plain band noise."
+        },
+        "dither_disable": {
+          "type": "boolean",
+          "default": false,
+          "description": "Controller opt-out: when true, the controller never dithers this instrument (neither numeric params nor categorical enabled/wave). Pin a constant voice (e.g. a fixed bass drone). Matrix modulation still applies."
+        },
+        "note_engine": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "polyphony": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 1,
+              "description": "simultaneous voices; 0 never sounds (engines-check warns) — and an instrument with no `note_engine` at all has 0"
+            },
+            "glide_ms": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0,
+              "description": "portamento time on a same-id pitch change"
+            }
+          }
+        },
+        "params": {
+          "$ref": "#/$defs/params"
+        },
+        "sends_db": {
+          "type": "object",
+          "description": "Send levels in dB into named buses, keyed by bus id (−60..+6; -Infinity = no send). Empty = dry only.",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": -60,
+            "maximum": 6,
+            "x-silence": true,
+            "description": "a send level in dB"
+          }
+        },
+        "velocity_default": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 127,
+          "default": 100,
+          "description": "MIDI velocity for voices that don't author their own `velocity` (ADR 0026; type \"midi\" only). Native MIDI units (ADR 0005 seam rule)."
+        },
+        "routing": {
+          "$ref": "#/$defs/midiRouting"
+        },
+        "out_channel": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 63,
+          "not": {
+            "multipleOf": 2
+          },
+          "description": "Multichannel stem routing (ADR 0027): first channel of the STEREO PAIR on the output device this instrument's dry signal goes to instead of the main 1/2 pair — 1-based and ODD (3 ⇒ channels 3/4), so a DAW taking the device (e.g. BlackHole 16ch) can mix each instrument on its own track. 1/2 always carries the rest of the mix (un-routed instruments + bus/reverb returns); sends still feed buses (the wet stays on 1/2). Folds back into 1/2 if the opened device has too few channels. Observation-only: renders, stems and the internal mix are unaffected. Audio instruments only (not type \"midi\")."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "midi"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "routing"
+            ],
+            "properties": {
+              "params": {
+                "type": "object",
+                "description": "On a midi translator, params are free-form named value-holders (0..1) — CC sources under `routing.cc` and matrix-modulation destinations; they never reach a synth.",
+                "additionalProperties": {
+                  "type": [
+                    "number",
+                    "string"
+                  ]
+                }
+              },
+              "out_channel": false
+            }
+          },
+          "else": {
+            "properties": {
+              "routing": false
+            }
+          }
+        }
+      ]
+    },
+    "midiRouting": {
+      "type": "object",
+      "description": "Where a type \"midi\" instrument's output goes (ADR 0026). The MUSICAL mapping lives here; binding to an OS port/device is a shell concern (CLI flag) so the core stays I/O-free.",
+      "additionalProperties": false,
+      "properties": {
+        "channel": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16,
+          "default": 1,
+          "description": "human MIDI channel 1..16 (wire messages use channel−1). Two midi instruments sharing a channel is linted: overlapping note numbers can cut each other off."
+        },
+        "cc": {
+          "type": "object",
+          "description": "param name → CC number. Each mapped param's EFFECTIVE value (base + all matrix modulation, incl. free-running LFOs) is quantized to 7 bits and emitted on change (initial full sync burst on session start). Mapped params must exist in `params` (validated).",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 127
+          }
+        }
+      }
+    },
+    "bus": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "external_return"
+          ],
+          "description": "Absent ⇒ an internal effects bus. \"external_return\" (ADR 0026 phase D, at most one per doc): a DAW-audio-return — session/shell config only (no effects, no audio in the core render). The shell captures a loopback input (--return-device) and monitor-mixes it into the live output at return_gain_db."
+        },
+        "return_gain_db": {
+          "type": "number",
+          "minimum": -60,
+          "maximum": 6,
+          "x-silence": true,
+          "description": "wet return level into the master mix in dB (−60..+6; -Infinity, the default, is silent; external_return: the live monitor-mix gain)"
+        },
+        "latency_ms": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 500,
+          "description": "external_return only: the MIDI→DAW→loopback round trip. Parsed but inert since ADR 0031 (it aligned the return for the removed learner's scoring)"
+        },
+        "effects": {
+          "type": "object",
+          "description": "ordered (sorted-id) effect chain (must be absent/empty on an external_return bus — the DAW owns its processing)",
+          "additionalProperties": {
+            "$ref": "#/$defs/busEffect"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "external_return"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "effects": {
+                "maxProperties": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "latency_ms": false
+            }
+          }
+        }
+      ]
+    },
+    "busEffect": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "effect discriminator, e.g. \"reverb\""
+        },
+        "params": {
+          "type": "object",
+          "description": "effect knobs (all 0..1 except `predelay_ms`). reverb: room, damping, shimmer (octave-up feedback), width (build-time-fixed), predelay_ms (0..100 ms).",
+          "additionalProperties": false,
+          "properties": {
+            "room": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "decay time / room size"
+            },
+            "damping": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "HF absorption (darker tail)"
+            },
+            "shimmer": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "octave-up pitch-shifted feedback amount"
+            },
+            "width": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "reverb-internal stereo width (build-time-fixed, not dithered)"
+            },
+            "predelay_ms": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "pre-delay in milliseconds (0..100)"
+            }
+          }
+        }
+      }
+    },
+    "params": {
+      "type": "object",
+      "description": "Base values, each in its native unit under a unit-suffixed key (schema v0.9, ADR 0054): Hz, s, dB (-Infinity = silent), cents, semitones, a ratio; the unitless ones (`resonance`, `sustain`, the mixes, the modal levers, `fm_index`, `fm_feedback`) stay 0..1. Amp envelope is note-relative; the instrument literally named `event` uses a bell (exp `decay_s`) envelope instead of full ADSR. Type-specific params (dual/modal, ADR 0009; binaural, ADR 0047) live here alongside the base ones.",
+      "additionalProperties": false,
+      "properties": {
+        "wave": {
+          "enum": [
+            "sine",
+            "triangle",
+            "saw_soft",
+            "square",
+            "pulse",
+            "sine_bell"
+          ],
+          "description": "oscillator; unknown names fall back to sine"
+        },
+        "source": {
+          "enum": [
+            "sine",
+            "triangle",
+            "saw_soft",
+            "square",
+            "pulse",
+            "sine_bell",
+            "filtered_noise"
+          ],
+          "description": "alias of `wave` (used for filtered_noise textures)"
+        },
+        "level_db": {
+          "type": "number",
+          "minimum": -60,
+          "maximum": 6,
+          "x-silence": true,
+          "description": "the voice's level in dB (−60..+6; -Infinity = silent). Default −6.02 dB"
+        },
+        "cutoff_hz": {
+          "type": "number",
+          "minimum": 80,
+          "maximum": 8000,
+          "description": "low-pass corner in Hz (80..8000, log; capped at Nyquist). A note whose fundamental is above it is filtered to near-silence. Default 2009.51"
+        },
+        "resonance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "filter Q, 0..1 → ~0.707..6. On a `pitched: true` filtered_noise instrument: the peak at the note, 0 (none) .. 1 (+24 dB, narrow — a near-whistle), at the same loudness"
+        },
+        "drive_db": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 20,
+          "description": "soft-clip pre-gain in dB (0..+20 = ×1..×10; 0 bypasses the clipper)"
+        },
+        "attack_s": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 3,
+          "description": "ADSR attack in seconds (0..3)"
+        },
+        "decay_s": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 4,
+          "description": "ADSR decay in seconds (0..4); for the legacy `event` bell, its ring length"
+        },
+        "sustain": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "ADSR hold LEVEL (the audible steady state). sustain 0 + short decay = pluck."
+        },
+        "release_s": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 4,
+          "description": "ADSR release in seconds (0..4)"
+        },
+        "band_lo_hz": {
+          "type": "number",
+          "minimum": 20,
+          "maximum": 4000,
+          "description": "filtered_noise bandpass low edge in Hz (20..4000, log; with `pitched: true`, the note's band sits inside this one, so open it below a low note to give the note noise)"
+        },
+        "band_hi_hz": {
+          "type": "number",
+          "minimum": 20,
+          "maximum": 4000,
+          "description": "filtered_noise bandpass high edge in Hz (20..4000, log)"
+        },
+        "voices_detune_cents": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "unison detune in cents: the instrument's sounding voices spread evenly across ±this (0..100)"
+        },
+        "shift_st": {
+          "type": "number",
+          "minimum": -24,
+          "maximum": 24,
+          "description": "octave-pedal interval in semitones (−24..+24); the crossfade target for shift_mix"
+        },
+        "shift_mix": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "dry↔shifted crossfade; needs a nonzero `shift_st` to be audible"
+        },
+        "osc_a_wave": {
+          "enum": [
+            "sine",
+            "triangle",
+            "saw_soft",
+            "square",
+            "pulse",
+            "sine_bell"
+          ],
+          "description": "dual (ADR 0009): carrier (osc A) waveshape"
+        },
+        "osc_b_wave": {
+          "enum": [
+            "sine",
+            "triangle",
+            "saw_soft",
+            "square",
+            "pulse",
+            "sine_bell"
+          ],
+          "description": "dual: modulator (osc B) waveshape"
+        },
+        "osc_a_level_db": {
+          "type": "number",
+          "minimum": -60,
+          "maximum": 6,
+          "x-silence": true,
+          "description": "dual: osc A level into the mixer in dB (−60..+6; -Infinity = off). Default −1.94 dB"
+        },
+        "osc_b_level_db": {
+          "type": "number",
+          "minimum": -60,
+          "maximum": 6,
+          "x-silence": true,
+          "description": "dual: osc B level into the mixer in dB (independent of whether B modulates A; -Infinity = off, the default)"
+        },
+        "osc_b_ratio": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 12,
+          "description": "dual: osc B frequency ratio to the note (NATIVE units; integer ⇒ harmonic, fractional ⇒ inharmonic)"
+        },
+        "osc_b_detune_cents": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 50,
+          "description": "dual: osc B detune in cents, upward (0..50)"
+        },
+        "fm_index": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "dual: osc-B→osc-A phase-modulation depth, 0..1 → 0..8 rad. 0 ⇒ pure dual-osc"
+        },
+        "fm_feedback": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "dual: operator self-feedback on osc B (DX-style)"
+        },
+        "material": {
+          "enum": [
+            "marimba",
+            "vibraphone",
+            "tuning_fork",
+            "resonators"
+          ],
+          "description": "modal (ADR 0009): struck-object preset (partial ratios + decay character)"
+        },
+        "num_modes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8,
+          "description": "modal: number of resonator modes (capped to the preset's available partials)"
+        },
+        "t60_s": {
+          "type": "number",
+          "minimum": 0.05,
+          "maximum": 8,
+          "description": "modal, t60_mode 'fixed' (the default): the fundamental's ring time in seconds (0.05..8, log). Default 0.63"
+        },
+        "ring_ratio": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 2,
+          "description": "modal, t60_mode 'note': the ring as a ratio of the driving note's length (0.5..2, log): 1 ⇒ T60 ≈ the note, <1 staccato, >1 blooms past it"
+        },
+        "t60_mode": {
+          "enum": [
+            "fixed",
+            "note"
+          ],
+          "description": "modal: ring-length source — 'fixed' (default) rings for `t60_s`; 'note' couples the ring to the driving note's own duration (its source step) through `ring_ratio`, so step_duration controls how long each strike sounds"
+        },
+        "brightness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "modal: high-mode rolloff (lower ⇒ darker, fewer audible partials)"
+        },
+        "strike_pos": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "modal: strike position (bar mode-shape weighting, sin(π·k·pos))"
+        },
+        "stretch": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "modal: inharmonicity (pushes higher partials progressively sharper)"
+        },
+        "root_hz": {
+          "type": "number",
+          "minimum": 20,
+          "maximum": 1000,
+          "description": "binaural (ADR 0047): the pair's root frequency in REAL Hz (fractions allowed, e.g. 109.5). Set ⇒ the routed note only gates the voice (its pitch is ignored; `voices_detune_cents` still spreads unison voices around it). Absent ⇒ the root is the note's pitch, so it follows the key and the Orrery. Matrix-modulatable (a route's depth is a fraction of the 20..1000 range), never drifted."
+        },
+        "spread_hz": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 40,
+          "description": "binaural (ADR 0047): the L/R spread in REAL Hz — the beat rate. Left = root − spread_hz/2, right = root + spread_hz/2 (110 / 2 ⇒ 109 | 111). Bands: delta < 4, theta 4–8, alpha 8–13, beta 13–30, gamma ≥ 30. Matrix-modulatable (a route's depth is a fraction of the 0..40 range), never drifted."
+        }
+      }
+    },
+    "modulator": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "lfo",
+            "step_seq"
+          ]
+        },
+        "output": {
+          "enum": [
+            "control",
+            "note"
+          ],
+          "description": "control = a 0..1 curve summed into a param; note = discrete note events. lfo is always control."
+        },
+        "orrery_disable": {
+          "type": "boolean",
+          "default": false,
+          "description": "Orrery mode opt-out: when true, the generative harmony layer never rewrites this note modulator's notes/voices — mark a constant \"underdrone\". Still read as fixed-pitch harmonic context (v0.8). Ignored outside Orrery mode."
+        },
+        "orrery_role": {
+          "enum": [
+            "chord",
+            "bass",
+            "arp",
+            "oneshot",
+            "context"
+          ],
+          "description": "Orrery role binding (v0.8, ADR 0010): bind this note modulator to a generative role instead of by id. context = read-only harmonic input. Parsed in Phase 0; consumed in Phase 4."
+        },
+        "orrery_note_min": {
+          "type": "number",
+          "minimum": -127,
+          "maximum": 127,
+          "description": "the lowest note the Orrery may write into this modulator: a semitone offset from the harmony root (like a voicing offset). An Orrery move that would cross it is skipped; a single note still outside folds back by octaves (ADR 0042). Takes precedence over a pool entry's written line: phrases re-fit inside it (fit arp is bounded by it instead of its written extremes; with one bound set the other side is open). Ignored outside Orrery mode."
+        },
+        "orrery_note_max": {
+          "type": "number",
+          "minimum": -127,
+          "maximum": 127,
+          "description": "the highest note the Orrery may write into this modulator (semitone offset from the harmony root); see orrery_note_min (ADR 0042)."
+        },
+        "sync": {
+          "enum": [
+            "loop",
+            "free"
+          ],
+          "default": "loop",
+          "description": "loop = restart each bar; free = carry phase across loops (drifts → polyrhythm)"
+        },
+        "length": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 16
+        },
+        "step_duration": {
+          "type": "string",
+          "pattern": "^\\s*[1-9]\\d*\\s*/\\s*[1-9]\\d*\\s*$",
+          "description": "step length as a fraction of the master loop, e.g. \"1/16\" (n, d > 0 — \"1/0\" / \"0/8\" are rejected); default 1/length"
+        },
+        "humanize_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "per-modulator humanize added to transport.timing_jitter_ms: seeded deterministic ±ms onset jitter (ADR 0028)"
+        },
+        "wave": {
+          "type": "string",
+          "description": "lfo waveform (sine/triangle/...)"
+        },
+        "polarity": {
+          "enum": [
+            "bipolar",
+            "unipolar"
+          ],
+          "description": "lfo: bipolar −1..1 or unipolar 0..1"
+        },
+        "rate_hz": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "lfo rate"
+        },
+        "interp": {
+          "enum": [
+            "smooth"
+          ],
+          "description": "control step_seq: linear interpolation between points (else stepped/held)"
+        },
+        "entry_value": {
+          "type": "number",
+          "description": "control step_seq: value before the first step (seam continuity)"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/step"
+          }
+        },
+        "generator": {
+          "$ref": "#/$defs/generator"
+        },
+        "pitch_walk": {
+          "$ref": "#/$defs/pitchWalk"
+        },
+        "phrase": {
+          "$ref": "#/$defs/phraseRef"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "lfo"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "rate_hz"
+            ]
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "phrase"
+            ]
+          },
+          "then": {
+            "description": "the phrase arm (ADR 0028) is a step_seq NOTE source with an explicit step_duration, exclusive with steps/generator/pitch_walk — mirrors LoopDoc::validate()",
+            "required": [
+              "output",
+              "step_duration"
+            ],
+            "properties": {
+              "type": {
+                "const": "step_seq"
+              },
+              "output": {
+                "const": "note"
+              },
+              "steps": {
+                "maxItems": 0
+              }
+            },
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "generator"
+                  ]
+                },
+                {
+                  "required": [
+                    "pitch_walk"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "step": {
+      "type": "object",
+      "required": [
+        "step"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "step": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "value": {
+          "type": "number",
+          "description": "control step_seq: the value at this step"
+        },
+        "voicing": {
+          "type": "object",
+          "description": "note step_seq: id-keyed voices (the key is the voice id)",
+          "additionalProperties": {
+            "$ref": "#/$defs/noteVoice"
+          }
+        }
+      }
+    },
+    "noteVoice": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "offset": {
+          "type": "number",
+          "description": "semitones from harmony.root (octave 4); ignored if instrument.pitched=false"
+        },
+        "cents_offset": {
+          "type": "number",
+          "description": "fine detune in cents (beating/chorus). Dropped in plain-MIDI translation (ADR 0026) — a future MPE mode restores it as pitch bend"
+        },
+        "prob": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 1,
+          "description": "chance this voice fires; rolled deterministically per loop_id+frame+index"
+        },
+        "release": {
+          "type": "boolean",
+          "default": false,
+          "description": "true = note-off + release tail"
+        },
+        "velocity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 127,
+          "description": "MIDI Note-On velocity (ADR 0026), native units. Only consumed when the voice lands on a type \"midi\" instrument; absent ⇒ that instrument's velocity_default (⇒ 100)"
+        },
+        "t": {
+          "type": "number",
+          "minimum": 0,
+          "exclusiveMaximum": 1,
+          "default": 0,
+          "description": "sub-step onset within the host step, in steps (ADR 0028): 0.5 = the \"and\", 1/3 = second triplet. 0 = on the beat; 1.0 belongs to the next step"
+        }
+      }
+    },
+    "generator": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "euclid"
+          ]
+        },
+        "pulses": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "notes distributed evenly over `length` steps"
+        },
+        "rotation": {
+          "type": "integer",
+          "description": "rotate the euclidean pattern"
+        }
+      }
+    },
+    "phraseRef": {
+      "type": "object",
+      "required": [
+        "pool"
+      ],
+      "additionalProperties": false,
+      "description": "the phrase arm (ADR 0028) — the third exclusive note-source shape (steps ⊕ generator ⊕ phrase); requires an explicit step_duration",
+      "properties": {
+        "pool": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          },
+          "description": "sequence_pools ids and/or built-in lib:<name> entries this modulator draws from; unknown ids are a hard error"
+        },
+        "active": {
+          "type": "string",
+          "description": "pin one pool entry (the Orrery rewrites this per phrase window); absent ⇒ `select` picks per tile"
+        },
+        "select": {
+          "enum": [
+            "seeded",
+            "cycle"
+          ],
+          "default": "seeded",
+          "description": "per-tile selection when `active` is absent — seeded by the tile ordinal, not loop_id (a seam-straddling tile decides identically on both sides)"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "restrict selection to entries carrying ALL of these tags"
+        },
+        "realized": {
+          "$ref": "#/$defs/phraseRealized",
+          "description": "machine-written (Orrery) refit copy of the active entry — wins over `active`; hand-authoring it lints"
+        }
+      }
+    },
+    "phraseDef": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/phraseDefBase"
+        }
+      ],
+      "properties": {
+        "notes": {
+          "minItems": 1
+        }
+      },
+      "description": "an authored sequence_pools entry (ADR 0028): at least one note; every gate must satisfy t + dur ≤ length (the engine validates)"
+    },
+    "phraseRealized": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/phraseDefBase"
+        }
+      ],
+      "description": "the Orrery's machine-written refit copy — may have NO notes: a narrative drop materializes an empty tile as legal silence"
+    },
+    "phraseDefBase": {
+      "type": "object",
+      "required": [
+        "length",
+        "notes"
+      ],
+      "additionalProperties": false,
+      "description": "shape shared by an authored sequence_pools entry and the Orrery's `realized` copy: pitch + rhythm + articulation, tiled every `length` HOST steps",
+      "properties": {
+        "fit": {
+          "enum": [
+            "chord",
+            "arp",
+            "root",
+            "literal"
+          ],
+          "default": "chord",
+          "description": "Harmony tracking: chord = re-voiced via melody-fit under the Orrery, snapped to the authored harmony.mode scale under a plain render; arp = like chord, but every note to a chord tone along the written line (ties follow its direction, no re-strike where it moves (a 9th/11th/13th tension when no new chord tone fits), inside the modulator's orrery_note_min/max if set, else its written range; never developed); root = parallel transpose (verbatim without a chord); literal = always as written."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "free-form selection tags (busy/calm/sparse/lift/…) the selector and Orrery energy gate filter by"
+        },
+        "length": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "tile length in HOST-modulator steps"
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/phraseNote"
+          },
+          "description": "ascending by t (lint-warned otherwise; evaluation sorts)"
+        }
+      }
+    },
+    "phraseNote": {
+      "type": "object",
+      "required": [
+        "t"
+      ],
+      "additionalProperties": false,
+      "description": "one phrase note; owns the deterministic voice id p{k} (k = legato-chain head index) — `dur` present = gated + re-strikes per tile, absent = HOLDS across tiles (sustain/glide, the pad idiom)",
+      "properties": {
+        "t": {
+          "type": "number",
+          "minimum": 0,
+          "description": "onset in host steps from the tile start (0 ≤ t < length; fractional = sub-step, thirds give triplets)"
+        },
+        "offset": {
+          "type": "number",
+          "default": 0,
+          "description": "semitones from harmony.root (octave 4)"
+        },
+        "dur": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "gate length in host steps (dur > 0 and t + dur ≤ length — a gate ends inside its own tile): paired note-off at t + dur"
+        },
+        "legato": {
+          "type": "boolean",
+          "default": false,
+          "description": "reuse the previous note's voice → the engine glides (slur) instead of re-striking; lints on a phrase's first note"
+        },
+        "prob": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 1,
+          "description": "chance this note fires; a failed roll skips the strike AND its note-off (rolled per tile ordinal, loop_id-free)"
+        },
+        "velocity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 127,
+          "description": "MIDI Note-On velocity (ADR 0026); only consumed on a type \"midi\" instrument"
+        },
+        "cents_offset": {
+          "type": "number",
+          "default": 0,
+          "description": "fine detune in cents; dropped in plain-MIDI translation"
+        }
+      }
+    },
+    "pitchWalk": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pool": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "semitone offsets the generator cycles through"
+        },
+        "order": {
+          "enum": [
+            "up",
+            "down",
+            "random"
+          ],
+          "default": "up"
+        }
+      }
+    },
+    "matrixEntry": {
+      "type": "object",
+      "description": "Routes a modulator to a destination. NOTHING sounds until wired here. A mod route's depth is written in its dest's unit, under exactly one key: depth_oct, depth_st, depth_cents, depth_s, depth_ms, depth_db, depth_hz, depth_x, or plain depth into a 0..1 dest (ADR 0054 P4).",
+      "required": [
+        "source",
+        "dest",
+        "kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "a modulators.<id> key"
+        },
+        "dest": {
+          "type": "string",
+          "pattern": "^(instruments\\.[^.]+\\.(params\\.[^.]+|notes)|global\\.[^.]+|buses\\.[^.]+\\.(return_gain_db|effects\\.[^.]+\\.params\\.[^.]+))$",
+          "description": "JSONPath: instruments.<inst>.params.<param> | instruments.<inst>.notes | global.<param> | buses.<bus>.return_gain_db | buses.<bus>.effects.<fx>.params.<param>"
+        },
+        "kind": {
+          "enum": [
+            "mod",
+            "note"
+          ]
+        },
+        "depth": {
+          "type": "number",
+          "description": "mod: into a 0..1 dest (`resonance`, a mix, `stereo_width`, a midi param): a signed fraction of it, added to the base (then clamped)"
+        },
+        "depth_oct": {
+          "type": "number",
+          "description": "mod: into a log-frequency or log-time dest (`cutoff_hz`, `band_*_hz`, `t60_s`, `ring_ratio`): octaves at the source's ±1 (6.64 oct spans a cutoff)"
+        },
+        "depth_st": {
+          "type": "number",
+          "description": "mod: into `shift_st`: semitones"
+        },
+        "depth_cents": {
+          "type": "number",
+          "description": "mod: into a detune (`voices_detune_cents`, `osc_b_detune_cents`): cents"
+        },
+        "depth_s": {
+          "type": "number",
+          "description": "mod: into an envelope time (`attack_s`, `decay_s`, `release_s`): seconds"
+        },
+        "depth_ms": {
+          "type": "number",
+          "description": "mod: into `predelay_ms`: milliseconds"
+        },
+        "depth_db": {
+          "type": "number",
+          "description": "mod: into a gain (`level_db`, the osc levels, `master_gain_db`, `return_gain_db`) or `drive_db`: dB, summed in dB (a route into a -Infinity base is inaudible)"
+        },
+        "depth_hz": {
+          "type": "number",
+          "description": "mod: into a linear-Hz dest (the binaural `root_hz`, `spread_hz`): Hz"
+        },
+        "depth_x": {
+          "type": "number",
+          "description": "mod: into `osc_b_ratio`: the ratio"
+        },
+        "mode": {
+          "enum": [
+            "add"
+          ],
+          "default": "add"
+        },
+        "depth_slew_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "mod: smooths depth changes across loops"
+        },
+        "voices": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "note: voice budget into the instrument's polyphony"
+        },
+        "priority": {
+          "type": "integer",
+          "default": 1,
+          "description": "note: lower = kept, higher = stolen first when sources share an instrument"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "note"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "dest": {
+                "pattern": "^instruments\\.[^.]+\\.notes$"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "matrixEntryPatch": {
+      "type": "object",
+      "description": "A partial matrixEntry (song layers, ADR 0029): any subset of the fields. A route id not in the base matrix must give source + dest + kind.",
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "dest": {
+          "type": "string",
+          "pattern": "^(instruments\\.[^.]+\\.(params\\.[^.]+|notes)|global\\.[^.]+|buses\\.[^.]+\\.(return_gain_db|effects\\.[^.]+\\.params\\.[^.]+))$"
+        },
+        "kind": {
+          "enum": [
+            "mod",
+            "note"
+          ]
+        },
+        "depth": {
+          "type": "number"
+        },
+        "depth_oct": {
+          "type": "number"
+        },
+        "depth_st": {
+          "type": "number"
+        },
+        "depth_cents": {
+          "type": "number"
+        },
+        "depth_s": {
+          "type": "number"
+        },
+        "depth_ms": {
+          "type": "number"
+        },
+        "depth_db": {
+          "type": "number"
+        },
+        "depth_hz": {
+          "type": "number"
+        },
+        "depth_x": {
+          "type": "number"
+        },
+        "mode": {
+          "enum": [
+            "add"
+          ]
+        },
+        "depth_slew_ms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "voices": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "priority": {
+          "type": "integer"
+        }
+      }
+    },
+    "songBlock": {
+      "type": "object",
+      "required": [
+        "loops"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "matrix": {
+          "type": "string",
+          "description": "a song.matrices layer name; absent = the top-level matrix as-is"
+        },
+        "loops": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "how many inner loops this block lasts"
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "explicit block seed (mixed with the session seed): blocks sharing one replay the same Orrery voyage. Keep it small (JSON numbers > 2^53 lose precision)."
+        },
+        "label": {
+          "type": "string",
+          "description": "display label (defaults to the layer name)"
+        },
+        "control": {
+          "$ref": "#/$defs/blockControl",
+          "description": "this block's session control (ADR 0055): a patch over the session's (the doc's control + CLI flags, an --objectives file, or a live edit), for this block only — the next block starts from the session's again"
+        }
+      }
+    },
+    "blockControl": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A song block's control (ADR 0055), in the doc's own control vocabulary. Applied over the session control at the block's start; a live edit mid-block wins for the fields it changes until the next block.",
+      "properties": {
+        "optimize": {
+          "enum": [
+            "hold",
+            "drift"
+          ],
+          "description": "the timbre axis for this block: hold freezes the authored values, drift walks them"
+        },
+        "movement": {
+          "$ref": "#/$defs/movement",
+          "description": "a partial movement merged over the session's field by field: `orrery: false` turns the Orrery off for the block (the bound voices play their authored material); other fields retune it. A later block with the Orrery on starts a fresh voyage from home."
+        },
+        "max_drift": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "description": "the block's cumulative drift cap (normalized), in place of the doc's max_drift"
+        },
+        "max_change": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "description": "caps the block's per-loop step (normalized); the session's step (--max-change, else the doc's) stays the ceiling"
+        },
+        "drift": {
+          "type": "object",
+          "description": "per-param drift overrides keyed by canonical JSONPath (a drift candidate, as `constraints` keys are): \"hold\" pins it at its authored value; {min, max} gives it its own band in NATIVE units; {max_drift} its own cap (normalized) around the authored value. Replaces a session `constraints` band on the same key.",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "hold"
+                ]
+              },
+              {
+                "$ref": "#/$defs/blockDriftOverride"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "blockDriftOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A block drift override: a native {min, max} band (either end optional), or a normalized max_drift around the authored value — not both.",
+      "properties": {
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "max_drift": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "constraintBand": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A [min,max] bound in native units; either end optional (a gain's min may be -Infinity). Shared by safe_bounds (Tier-2) and constraints (Tier-3, in the doc or an objectives doc).",
+      "properties": {
+        "min": {
+          "type": "number",
+          "x-silence": true
+        },
+        "max": {
+          "type": "number"
+        }
+      }
+    },
+    "movement": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Musical-movement axis (mirrors objectives_v0.1 `movement`; Rust: contract::Movement). `tension_max` / `voice_changes_per_loop` / `home` are parsed but inert.",
+      "properties": {
+        "orrery": {
+          "type": "boolean",
+          "default": false,
+          "description": "generative Orrery harmony on/off"
+        },
+        "bind": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "which note modulators the Orrery drives (by id)",
+          "properties": {
+            "chord": {
+              "type": "string",
+              "default": "chords"
+            },
+            "bass": {
+              "type": "string",
+              "default": "bass_line"
+            },
+            "arp": {
+              "type": "string",
+              "default": "arp_shimmer"
+            },
+            "oneshot": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "phrase_loops": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "loops per phrase (how often a chord change can happen)"
+        },
+        "tension_target": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.32
+        },
+        "tension_max": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.7,
+          "description": "inert"
+        },
+        "voice_changes_per_loop": {
+          "$ref": "#/$defs/range01",
+          "description": "inert"
+        },
+        "home": {
+          "enum": [
+            "global",
+            "per_modulator"
+          ],
+          "default": "global",
+          "description": "inert"
+        },
+        "arrange": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "optional Arranger tuning; every field defaults to the built-in constant (absent ⇒ byte-identical)",
+          "properties": {
+            "arp_density": {
+              "$ref": "#/$defs/range01",
+              "description": "arp euclid-density band as a FRACTION of the arp's authored length (default 0.12..0.70)"
+            },
+            "return_hazard_scale": {
+              "type": "number",
+              "minimum": 0,
+              "default": 1.0,
+              "description": "multiplier on every return-home hazard; >1 returns home sooner, <1 wanders longer"
+            }
+          }
+        }
+      }
+    },
+    "range01": {
+      "type": "object",
+      "required": [
+        "min",
+        "max"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        }
+      }
+    }
+  }
+}

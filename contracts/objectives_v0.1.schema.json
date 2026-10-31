@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://engines.invalid/contracts/objectives_v0.1.schema.json",
+  "title": "Session control / objectives doc (objectives_v0.1)",
+  "description": "The runtime control plane (ADR 0010): HOW the controller drives the music. Two orthogonal axes (optimize × movement) plus guardrails, Tier-3 constraint bands, and a live loop-doc overlay. The CLAP learner fields (objective, pursue, clap_avoid) were removed with ADR 0031. Standing & complete; editing replaces it and bumps `revision` (re-base on change, CE-R8.2). Supersedes control_objective_v0.1. Rust type: crate::contract::SessionControl. The engine core is I/O-free — the shell/TUI owns watching this file (Phase 1).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "objectives_v0.1" },
+    "revision": { "type": "integer", "minimum": 0, "description": "bumped on every applied edit; recorded in telemetry and each per-loop record" },
+    "optimize": { "enum": ["hold", "drift", "live_edit"], "default": "drift", "description": "timbre axis: freeze, bounded random drift, or live hand-editing (CE-R8.1)" },
+    "movement": { "$ref": "#/$defs/movement" },
+    "constraints": {
+      "type": "object",
+      "description": "Tier-3 runtime constraint bands (native units), JSONPath -> {min,max}. If a param sits outside its band, the controller drives it back at <= max_change (Phase 1 attractor).",
+      "additionalProperties": { "$ref": "#/$defs/constraintBand" }
+    },
+    "overrides": {
+      "type": "object",
+      "description": "live loop-doc overlay: JSONPath -> value (number/bool/string), merged onto the operating point at the next loop boundary (Phase 1).",
+      "additionalProperties": true
+    },
+    "guardrails": { "$ref": "#/$defs/guardrails" },
+    "meta_notes": { "type": ["string", "null"] }
+  },
+  "$defs": {
+    "movement": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "musical-movement axis: generative Orrery harmony on/off + its config. `tension_max`/`voice_changes_per_loop`/`home` are parsed but inert until Phase 5; `bind` is fully consumed in Phase 4.",
+      "properties": {
+        "orrery": { "type": "boolean", "default": false },
+        "bind": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "which note modulators Orrery drives (by id); defaults match the demo fixtures",
+          "properties": {
+            "chord": { "type": "string", "default": "chords" },
+            "bass": { "type": "string", "default": "bass_line" },
+            "arp": { "type": "string", "default": "arp_shimmer" },
+            "oneshot": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "phrase_loops": { "type": "integer", "minimum": 1, "default": 1, "description": "loops per phrase (how often a chord change happens)" },
+        "tension_target": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.32 },
+        "tension_max": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.7, "description": "INERT until Phase 5: exceeding it triggers a global return home" },
+        "voice_changes_per_loop": { "$ref": "#/$defs/range01", "description": "INERT until Phase 5: 4-loop moving-average sparseness band" },
+        "home": { "enum": ["global", "per_modulator"], "default": "global", "description": "INERT until Phase 5" },
+        "arrange": { "$ref": "#/$defs/arrange" }
+      }
+    },
+    "arrange": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Phase 6d: optional Arranger tuning. Every field defaults to the engine's built-in constant, so an absent/partial block renders byte-identically. The full per-track hazard table stays internal.",
+      "properties": {
+        "arp_density": { "$ref": "#/$defs/range01", "description": "arp euclid-density band as a FRACTION of the arp's authored length (min/max 0..1, default 0.12..0.70); pulses interpolate across [min·len, max·len] by the energy/tension drive" },
+        "return_hazard_scale": { "type": "number", "minimum": 0, "default": 1.0, "description": "multiplier on every return-home hazard (chord + per-track); >1 returns home sooner, <1 wanders longer; applied atop the Arranger's build/release return_scale" }
+      }
+    },
+    "constraintBand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "min": { "type": "number" }, "max": { "type": "number" } }
+    },
+    "range01": {
+      "type": "object",
+      "required": ["min", "max"],
+      "additionalProperties": false,
+      "properties": { "min": { "type": "number" }, "max": { "type": "number" } }
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "max_change_per_loop bounds every drift step; floors/ceilings tighten the Tier-2 safe range.",
+      "properties": {
+        "max_change_per_loop": { "type": "number", "minimum": 0 },
+        "ceilings": { "type": "object", "additionalProperties": { "type": "number" } },
+        "floors": { "type": "object", "additionalProperties": { "type": "number" } }
+      }
+    }
+  }
+}

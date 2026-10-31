@@ -1,0 +1,546 @@
+{
+    // ============================================================
+    //  LOOP SEQUENCE CONTRACT — v0.9  (annotated)
+    //  One document = the complete intended control state for the
+    //  NEXT loop. The engine diffs it against current state by `id`
+    //  at the loop boundary (atomic swap). It describes CONTROL, not
+    //  audio: synth voices run continuously, only the control
+    //  timeline loops — so envelope tails / filter state / LFO phase
+    //  cross the seam (that is what makes long drones seamless).
+    //
+    //  The engine parses JSON5 directly (ADR 0023): `//` and `/* */`
+    //  comments and trailing commas are allowed, so THIS annotated file
+    //  renders as-is — `engines-render doc/loop_contract_v0.9.json5 out.wav`.
+    //  Copy it as a starting point (or `make templates`). The test suite's
+    //  `lab/tests/fixtures/loop_contract_v0.9.json` is a smaller strict-JSON
+    //  doc of the same shape (not a copy of this one); the JSON Schema is
+    //  `contracts/loop_contract_v0.9.schema.json`.
+    //
+    //  v0.7 vs v0.6: `modulators`, `matrix`, and per-step `voicing`
+    //  are now ID-KEYED OBJECTS (the key is the id); `steps` and
+    //  `pitch_walk.pool` stay arrays. Iteration is by sorted key.
+    //  A matrix `dest` is a full JSONPath
+    //  (`instruments.poly.params.cutoff_hz`, `global.stereo_width`,
+    //  `instruments.poly.notes`).
+    //
+    //  v0.8 (ADR 0010): adds top-level `safe_bounds` (Tier-2 per-param
+    //  controllable ranges; canonical defaults in the schema's
+    //  `x-safe-bounds-defaults`) and per-modulator `orrery_role`.
+    //
+    //  v0.9 (ADR 0054): every param is written in its NATIVE unit under a
+    //  unit-suffixed key — `cutoff_hz`, `attack_s`, `decay_s`,
+    //  `level_db` (-Infinity = silent), `sends_db`, `voices_detune_cents`,
+    //  `shift_st`, `predelay_ms` — and a route's depth in its dest's unit
+    //  (`depth_oct`, `depth_db`, …). The unitless levers (`resonance`,
+    //  `sustain`, the mixes, the modal ones) stay 0..1. `global.reverb_mix`
+    //  is gone. `engines-migrate` converts a v0.8 doc.
+    // ============================================================
+    "schema_version": "0.9",
+    "loop_id": 413, // monotonic; also the root RNG seed (prob rolls, noise) — deterministic per id
+    "meta": {
+        "created_by": "controller",
+        "directive_id": 38, // which LLM directive this loop progresses toward
+        "progress_to_target": 0.40, // 0..1 config-space convergence, reported upward
+        "constraints_clamped": [] // telemetry: sandbox limits hit while building this loop
+    },
+    "transport": {
+        "bpm": 65,
+        "master_steps": 16, // loop length in steps; loop seconds = master_steps * 60/bpm
+        "step_unit": "beat", // 16 beats @ 65 bpm ≈ 14.77 s
+        "swing": 0.0, // 0..1: odd on-grid steps delay by swing·step/3 (1 = triplet feel); fractional-t onsets never swing (ADR 0028)
+        "timing_jitter_ms": 8 // humanize: seeded ±ms onset jitter (adds to each modulator's humanize_ms) — deterministic per loop_id for step/euclid arms, per tile ORDINAL for phrase arms (ADR 0028 D5)
+    },
+    // Tonal reference only. All note `offset`s are SEMITONES from `root`
+    // at octave 4 (root D, offset 0 = D4 ≈ 293.66 Hz). `mode` is the
+    // scale context for scale-aware features (e.g. `pitch_walk` pools).
+    "harmony": {
+        "root": "D",
+        "mode": "dorian"
+    },
+    // Global mix. master_gain_db default 0 (unity; −60..+6, no limiter follows); output is hot —
+    // trim for audition. stereo_width 0..1.
+    "global": {
+        "master_gain_db": 0,
+        "stereo_width": 0.5 // side gain = width*2
+    },
+    // ============================================================
+    //  INSTRUMENTS. Hold BASE values + the note engine only — no
+    //  time-variation here (that comes from modulators via the matrix).
+    //  `params` is heterogeneous: a `wave`/`source` string + numeric
+    //  knobs, each in its unit (the key says it: _hz, _s, _db, _cents,
+    //  _st; no suffix = 0..1). Every numeric knob is matrix-modulatable
+    //  and — except binaural root_hz/spread_hz — a controller dither
+    //  candidate. A gain at -Infinity is silent and never drifts.
+    //  Amp envelope is NOTE-RELATIVE: each articulation starts its
+    //  ADSR at its own onset (attack 0 / short decay / sustain 0 =
+    //  pluck anywhere in the loop; a held drone needs sustain > 0).
+    //  The instrument literally named "event" uses a bell (exp-decay)
+    //  envelope instead of the full ADSR.
+    //  Optional "type" (ADR 0009) selects the synth: "subtractive"
+    //  (default, absent ⇒ subtractive), "dual" (two oscillators,
+    //  Hydrasynth-style: each to the mixer at its own level; osc B can
+    //  PM-modulate osc A), "modal" (struck-resonator physical model), or
+    //  "binaural" (ADR 0047: two subtractive voices hard L/R at
+    //  root ∓ spread_hz/2, outside the master stereo_width — headphones).
+    //  `type` is NEVER dithered (it changes per-voice state shape).
+    //  Full param menu (see the schema):
+    //    base:  level_db (−60..+6), cutoff_hz (80..8000, log),
+    //           resonance (0..1), drive_db (0..20), attack_s (0..3),
+    //           decay_s (0..4), sustain (0..1), release_s (0..4),
+    //           shift_st (−24..+24), shift_mix (0..1).
+    //    subtractive: wave/source, voices_detune_cents (0..100),
+    //           band_lo_hz, band_hi_hz (20..4000).
+    //    dual: osc_a_wave, osc_b_wave, osc_a_level_db, osc_b_level_db,
+    //          osc_b_ratio (0.5..12), osc_b_detune_cents (0..50),
+    //          fm_index, fm_feedback (0..1).
+    //    modal: material, num_modes (categorical), t60_s (0.05..8 s,
+    //           `t60_mode: "fixed"`) or ring_ratio (0.5..2 × the note,
+    //           `t60_mode: "note"`), brightness, strike_pos, stretch.
+    //    binaural: the subtractive set (no band/noise) + root_hz (Hz
+    //              20..1000, optional: absent ⇒ the note) + spread_hz
+    //              (Hz 0..40, the beat). Never drifted.
+    //  Waves: sine, triangle, saw_soft, square, pulse, sine_bell
+    //  (+ filtered_noise for `source`).
+    //  `dither_disable: true` pins an instrument: the controller never
+    //  dithers it (numeric or categorical) — e.g. a constant bass drone.
+    //  Matrix modulation still applies.
+    // ============================================================
+    "instruments": {
+        "mono": { // monophonic pedal/bass voice; glide gives portamento
+            "enabled": true,
+            "pitched": true,
+            "note_engine": { "polyphony": 1, "glide_ms": 400 },
+            // octave-pedal: add "shift_st": -12, "shift_mix": 0.5 for a blended sub-octave (ADR 0005);
+            // "resonance": 0..1 emphasizes the cutoff. Both are matrix-modulatable + dither candidates.
+            "params": { "wave": "triangle", "drive_db": 7.42, "level_db": -1.94, "cutoff_hz": 290.46 },
+            "sends_db": { "rv": 0 }
+        },
+        "poly": { // the pad — 6-voice, lightly detuned saw
+            "enabled": true,
+            "pitched": true,
+            "note_engine": { "polyphony": 6, "glide_ms": 250 },
+            "params": { "wave": "saw_soft", "voices_detune_cents": 4, "level_db": -5.19, "cutoff_hz": 635.46 },
+            "sends_db": { "rv": 0 }
+        },
+        // `pitched: true` on a filtered_noise voice puts a band on each note (ADR 0046): the band_lo..band_hi
+        // noise goes on through a band-pass at the note, 24 dB/oct either side; `resonance` raises the note
+        // (1 ≈ a breathy whistle), same loudness. Left out / false = plain band noise, as here.
+        "rhythmic": { // unpitched texture: offsets ignored, voices are bare triggers
+            "enabled": true,
+            "pitched": false,
+            "note_engine": { "polyphony": 2 },
+            "params": { "source": "filtered_noise", "band_lo_hz": 687.9, "band_hi_hz": 1829.2, "level_db": -13.98 },
+            "sends_db": { "rv": 0 }
+        },
+        "event": { // "event" name ⇒ bell envelope; `decay_s` sets the ring length
+            "enabled": true,
+            "pitched": true,
+            "note_engine": { "polyphony": 2, "glide_ms": 0 },
+            "params": { "wave": "sine_bell", "decay_s": 2.8, "level_db": -11.06 },
+            "sends_db": { "rv": 0 }
+        },
+        "fm": { // dual-osc (ADR 0009): osc B at ratio 2 PM-modulates osc A; both to the mix
+            "type": "dual",
+            "enabled": true,
+            "pitched": true,
+            "note_engine": { "polyphony": 4, "glide_ms": 0 },
+            "params": {
+                "osc_a_wave": "sine", "osc_b_wave": "sine",
+                "osc_a_level_db": -1.94, "osc_b_level_db": -20,
+                "osc_b_ratio": 2.0, "osc_b_detune_cents": 0,
+                "fm_index": 0.3, "fm_feedback": 0.1,
+                "attack_s": 0.06, "decay_s": 1.2, "sustain": 0.6, "release_s": 2,
+                "level_db": -6.02, "cutoff_hz": 4009.5
+            },
+            "sends_db": { "rv": 0 }
+        },
+        "mallet": { // modal (ADR 0009): struck marimba bar; intrinsic decay (no ADSR)
+            "type": "modal",
+            "enabled": true,
+            "pitched": true,
+            "note_engine": { "polyphony": 6, "glide_ms": 0 },
+            "params": {
+                "material": "marimba", "num_modes": 3,
+                "t60_s": 0.491, "brightness": 0.7, "strike_pos": 0.28, "stretch": 0.05,
+                "level_db": -3.1
+            },
+            "sends_db": { "rv": 0 }
+            //  optional `"out_channel": 3` (ADR 0027): route this instrument's DRY stereo signal
+            //  to device channels 3/4 instead of the main 1/2 pair (odd, 3..63), so a DAW taking
+            //  a multichannel loopback (e.g. `--output-device "BlackHole 16ch"`) mixes each
+            //  instrument on its own track. 1/2 keeps everything un-routed + all bus/reverb wet;
+            //  renders, stems and the internal mix are unaffected. Audio instruments only.
+        },
+        "binaural_bed": { // binaural (ADR 0047): left 109 Hz, right 111 Hz — a 2 Hz beat between the ears
+            "type": "binaural",
+            "enabled": false,   // opt-in: give it a held note route (it only gates, root_hz pins the pitch)
+            "pitched": true,
+            "note_engine": { "polyphony": 1, "glide_ms": 0 },
+            //  root_hz / spread_hz are REAL Hz (fractions fine). Leave root_hz out to follow the note.
+            //  Keep it dry: a send blends L and R in the bus. Sine keeps one beat (a saw's
+            //  harmonics beat at k · spread).
+            "params": {
+                "wave": "sine", "root_hz": 110, "spread_hz": 2,
+                "cutoff_hz": 318.49, "attack_s": 1.8, "sustain": 1.0, "release_s": 4, "level_db": -10.46
+            }
+        },
+        "ext_pad": { // MIDI translator (ADR 0026): NO audio — notes → Note-On/Off, params → CC,
+            //  sent to an external device/DAW at playback time (`engines-play --midi`; the port
+            //  binding is a shell flag, not doc content). Feed it notes/mods through the
+            //  matrix exactly like a synth — voice semantics (sustain/glide/steal/release)
+            //  are shared, so "absent = sustain" holds externally too (the synth keeps
+            //  sounding; note-offs come from release/steal/disable, never from silence).
+            "type": "midi",
+            "enabled": false,   // opt-in: flip on (or copy) when driving an external synth
+            "pitched": true,
+            "note_engine": { "polyphony": 6, "glide_ms": 0 }, // glide: use the EXT synth's portamento
+            //  free-form value-holders: CC sources (below) + matrix-mod destinations. 0..1.
+            "params": { "brightness": 0.5, "motion": 0.3 },
+            "velocity_default": 100, // Note-On velocity when a voicing doesn't author one (1..127)
+            "routing": {
+                "channel": 1,        // human 1..16 (one channel per midi instrument; sharing is linted)
+                //  param → CC#. The EFFECTIVE value (base + all matrix modulation, incl.
+                //  free-running LFOs) is quantized to 7 bits and sent on change.
+                "cc": { "brightness": 74, "motion": 1 }
+            }
+            //  per-voice velocity is authored on voicings: {"offset": 7, "velocity": 96}.
+            //  cents_offset is dropped in plain MIDI (future MPE mode restores it).
+            //  midi params aren't drifted by default (the DAW owns their sound).
+        }
+    },
+    // ============================================================
+    //  MODULATORS (id-keyed). Two `type`s: "lfo" and "step_seq".
+    //  Two `output` domains: "control" (a curve the matrix sums into a
+    //  param, by the route's depth) and "note" (discrete note events).
+    //  A step_seq has EITHER explicit `steps` OR a `generator`.
+    //  `sync`: "loop" restarts each bar; "free" carries phase across
+    //  loops (drifts → use for polyrhythm). Phase persists in the
+    //  engine snapshot either way.
+    //  `orrery_role` (Phase 4, the movement axis) tags a NOTE modulator for
+    //  the generative-harmony layer: "chord" | "bass" | "arp" | "oneshot" |
+    //  "context". With `--orrery`, Orrery binds by role (falling back to
+    //  `movement.bind` ids), deriving each surface from the evolving chord.
+    //  A "context" modulator (and any `orrery_disable: true`) is read-only
+    //  harmonic context Orrery fits around but never rewrites.
+    //  `orrery_disable: true` on a NOTE modulator → Orrery never rewrites its
+    //  notes/voices (a constant "underdrone"; read as "context").
+    //  `orrery_note_min` / `orrery_note_max` (semitone offsets from the root,
+    //  like a voicing `offset`) bound everything the Orrery writes into the
+    //  modulator: a move that would cross them is skipped, a stray note folds
+    //  back by octaves (ADR 0042) — e.g. an arp kept to F3..F5 in F is
+    //  `orrery_note_min: -12, orrery_note_max: 12`. The range takes precedence
+    //  over a pool entry's written line: a `fit: "arp"` entry re-fits inside
+    //  it, not inside its written extremes (one key set ⇒ the other side
+    //  open). All four keys are ignored outside Orrery mode.
+    // ============================================================
+    "modulators": {
+        // CONTROL: free-running LFO. Slow rate + free sync = ambient "breathing".
+        "lfo_breath": {
+            "type": "lfo",
+            "output": "control",
+            "wave": "sine",
+            "sync": "free",
+            "rate_hz": 0.05,
+            "polarity": "bipolar" // bipolar −1..1 (unipolar = 0..1)
+        },
+        // CONTROL: loop-synced swell. `entry_value` pins C0 continuity at the seam;
+        // `interp:"smooth"` ramps between points (else stepped/held).
+        "seq_swell": {
+            "type": "step_seq",
+            "output": "control",
+            "sync": "loop",
+            "length": 16,
+            "entry_value": 0.44,
+            "interp": "smooth",
+            "steps": [
+                { "step": 0, "value": 0.44 },
+                { "step": 8, "value": 0.54 },
+                { "step": 15, "value": 0.47 }
+            ]
+        },
+        // NOTE: chord progression. Shows all four voice-transition cases plus
+        // per-voice `prob` and `cents_offset`. `voicing` is ID-KEYED: a voice
+        // present in consecutive steps with a NEW offset GLIDES; same offset =
+        // SUSTAIN; omitted id = SUSTAIN (holds its prior pitch); `release:true`
+        // = note-off + release tail; a NEW id = fresh articulation.
+        // A voice may also carry `t` (0 ≤ t < 1, ADR 0028): its onset within the
+        // host step, in steps — e.g. `"v2": { "offset": 7, "t": 0.5 }` strikes on
+        // the "and"; 1/3 ≈ 0.333 gives triplets. Default 0 = on the beat.
+        "chords": {
+            "type": "step_seq",
+            "output": "note",
+            "orrery_role": "chord", // Orrery rewrites this as the orbiting chord body (--orrery)
+            "sync": "loop",
+            "length": 16,
+            "steps": [
+                { "step": 0, "voicing": {
+                    "v1": { "offset": 0 },
+                    "v2": { "offset": 7 },
+                    "v3": { "offset": 10, "cents_offset": -5 }, // gentle beating vs v2
+                    "v4": { "offset": 14, "cents_offset": 4 } // shimmer on the 9th
+                } },
+                { "step": 8, "voicing": {
+                    "v1": { "offset": 0 }, // held (same pitch → sustain)
+                    "v2": { "offset": 9 }, // present both steps → glides 7→9
+                    "v4": { "offset": 14, "cents_offset": 4, "prob": 0.6 }
+                    // v4 present only 60% of loops (deterministic per loop_id).
+                    // v3 omitted here → ABSENT → sustains its prior pitch (10).
+                } },
+                { "step": 12, "voicing": {
+                    "v1": { "offset": 0 },
+                    "v2": { "offset": 9 },
+                    "v3": { "offset": 12, "cents_offset": -3 }, // glides from sustained 10 → 12
+                    "v4": { "release": true } // explicit stop (note-off + release tail)
+                } }
+            ]
+        },
+        // NOTE: mono pedal/bass line. Single-voice voicings; the id enables glide.
+        "bass_line": {
+            "type": "step_seq",
+            "output": "note",
+            "orrery_role": "bass", // Orrery derives the bass from the chord root/fifth (--orrery)
+            "sync": "loop",
+            "length": 16,
+            "steps": [
+                { "step": 0, "voicing": { "v1": { "offset": -12 } } },
+                { "step": 8, "voicing": { "v1": { "offset": -5, "prob": 0.6 } } }, // 60% it lifts; else holds −12
+                { "step": 13, "voicing": { "v1": { "offset": -12 } } }
+            ]
+        },
+        // NOTE: arp. `generator` (euclid) = RHYTHM; `pitch_walk` = self-contained
+        // pitch source (cycles `pool` up/down/random). PROVISIONAL: pitch_walk
+        // exists only because modulator→modulator refs are deferred; the controller
+        // updates `pool` to track harmony for now. Generator notes are anonymous →
+        // each is a fresh articulation (re-triggers; percussive).
+        "arp_shimmer": {
+            "type": "step_seq",
+            "output": "note",
+            "orrery_role": "arp", // Orrery locks the pitch_walk pool to the chord's tones (--orrery)
+            "sync": "loop",
+            "length": 44,
+            "step_duration": "1/44", // fraction of the master loop (default 1/length)
+            "humanize_ms": 6, // extra seeded ±ms onset jitter on top of transport.timing_jitter_ms (ADR 0028)
+            "generator": { "kind": "euclid", "pulses": 17, "rotation": 0 },
+            "pitch_walk": { "pool": [12, 16, 19, 24], "order": "up" }
+        },
+        // NOTE: polymetric rhythmic noise (bare triggers; instrument is pitched:false).
+        // 23 steps of 1/16-loop each = 1.4375 loops → drifts (sync:"free") = polyrhythm.
+        "rhy_noise": {
+            "type": "step_seq",
+            "output": "note",
+            "sync": "free",
+            "length": 23,
+            "step_duration": "1/16",
+            "generator": { "kind": "euclid", "pulses": 9, "rotation": 4 }
+        },
+        // NOTE: sparse stochastic events. Explicit single-voice voicings w/ per-voice prob.
+        "spark_events": {
+            "type": "step_seq",
+            "output": "note",
+            "sync": "free",
+            "length": 17,
+            "step_duration": "1/16",
+            "steps": [
+                { "step": 2, "voicing": { "e": { "offset": 12, "prob": 0.06 } } },
+                { "step": 7, "voicing": { "e": { "offset": 7, "prob": 0.04 } } },
+                { "step": 11, "voicing": { "e": { "offset": 19, "prob": 0.05 } } },
+                { "step": 16, "voicing": { "e": { "offset": 24, "prob": 0.03 } } }
+            ]
+        },
+        // NOTE: phrase arm (ADR 0028) — the THIRD note-source shape (steps ⊕
+        // generator ⊕ phrase): plays SEQUENCE POOL entries (see `sequence_pools`
+        // below; `lib:<name>` = the built-in library) tiled on this modulator's
+        // grid. `select` re-picks per tile (seeded by the tile ordinal —
+        // deterministic, seam-safe); `active` would pin one entry; the Orrery
+        // rewrites `active`/`realized` when it drives the doc. Unrouted here —
+        // like every source, nothing sounds until wired in the matrix.
+        "glints": {
+            "type": "step_seq",
+            "output": "note",
+            "sync": "free",
+            "length": 16,
+            "step_duration": "1/16", // REQUIRED for a phrase arm (the tile is the entry's `length`)
+            "phrase": {
+                "pool": ["lib:and_lift", "riverbed"], // built-in + doc-local, rotated per tile
+                "select": "seeded" // or "cycle"; add `tags` to filter the pool
+            }
+        }
+    },
+    // ============================================================
+    //  SEQUENCE POOLS (ADR 0028). Named phrases a modulator's `phrase` arm
+    //  plays: pitch + rhythm + articulation, tiled every `length` HOST steps.
+    //  `t`/`dur` are in host steps — fractional t = SUB-STEP onsets (0.5 = the
+    //  "and", thirds = triplets). `dur` present = gated note (note-off at
+    //  t+dur, re-strikes each tile); NO dur = the note HOLDS across tiles
+    //  (sustain; pitch changes glide — the pad idiom). Same shape as the
+    //  built-in library (crates/engines_core/assets/phrase_library.json5): pin a
+    //  `lib:` entry against engine upgrades by pasting it here verbatim.
+    //  `fit`: "chord" = re-voiced to the current chord under the Orrery; under
+    //  a plain render it still snaps to the authored harmony.mode scale (so
+    //  library contours land in-key). "arp" = like "chord" but along the
+    //  written line: every note to a chord tone, ties follow its direction, no
+    //  re-strike where it moves (a 9th/11th/13th tension when no new chord
+    //  tone fits), inside the modulator's orrery_note_min/max if set, else its
+    //  written range; never developed (arpeggios).
+    //  "root" = parallel transpose (verbatim without a chord); "literal" =
+    //  always exactly as written.
+    // ============================================================
+    "sequence_pools": {
+        // A gentle turn: strike-and-hold, slur up a step (legato glide), let go,
+        // then an off-beat answer on the "and" of step 4.
+        "riverbed": {
+            "fit": "chord",
+            "tags": ["calm"],
+            "length": 8,
+            "notes": [
+                { "t": 0, "offset": 12 }, // no dur → holds…
+                { "t": 2, "offset": 14, "legato": true, "dur": 1.0 }, // …slurred up, then gated off
+                { "t": 4.5, "offset": 19, "dur": 0.75 }, // the "and" of step 4
+                { "t": 6, "offset": 17, "dur": 1.5, "prob": 0.7 }
+            ]
+        }
+    },
+    // ============================================================
+    //  MATRIX (id-keyed). NOTHING sounds until wired here.
+    //    kind:"mod"  → a control source summed into a param
+    //                  (`instruments.<inst>.params.<param>`,
+    //                  `global.<param>`, a bus's). The depth (signed) is in
+    //                  the dest's unit, under one key: `depth_oct` into a
+    //                  log Hz/time (cutoff_hz, band_*_hz, t60_s, ring_ratio),
+    //                  `depth_db` into a gain or drive_db (summed in dB;
+    //                  a -Infinity base stays silent), `depth_s`, `depth_ms`,
+    //                  `depth_st`, `depth_cents`, `depth_hz`, `depth_x`, or
+    //                  plain `depth` into a 0..1 param. depth * value is
+    //                  added to the base and clamped to its range;
+    //                  `depth_slew_ms` smooths depth changes across loops.
+    //    kind:"note" → a note source feeds an instrument's voice pool
+    //                  (`instruments.<inst>.notes`), arbitrated by the
+    //                  `voices` budget + `priority` (lower kept, higher
+    //                  stolen first when sources share an instrument).
+    // ============================================================
+    "matrix": {
+        "m_breath_w": { "source": "lfo_breath", "dest": "global.stereo_width", "kind": "mod", "depth": 0.10, "mode": "add", "depth_slew_ms": 1500 },
+        "m_breath_c": { "source": "lfo_breath", "dest": "instruments.poly.params.cutoff_hz", "kind": "mod", "depth_oct": 0.399, "mode": "add", "depth_slew_ms": 1500 },
+        "m_swell": { "source": "seq_swell", "dest": "instruments.poly.params.level_db", "kind": "mod", "depth_db": 2.69, "mode": "add" },
+        // FAN-IN on poly's 6 voices: pad (priority 1, never stolen) + arp (priority 3, stolen first)
+        "m_chords": { "source": "chords", "dest": "instruments.poly.notes", "kind": "note", "voices": 4, "priority": 1 },
+        "m_arp": { "source": "arp_shimmer", "dest": "instruments.poly.notes", "kind": "note", "voices": 2, "priority": 3 },
+        "m_bass": { "source": "bass_line", "dest": "instruments.mono.notes", "kind": "note", "voices": 1, "priority": 1 },
+        "m_rhy": { "source": "rhy_noise", "dest": "instruments.rhythmic.notes", "kind": "note", "voices": 2, "priority": 2 },
+        "m_spark": { "source": "spark_events", "dest": "instruments.event.notes", "kind": "note", "voices": 2, "priority": 2 }
+        // Bus params are matrix destinations too, e.g. an LFO breathing the shimmer:
+        //   "m_shimmer": { "source": "lfo_breath", "dest": "buses.rv.effects.verb.params.shimmer", "kind": "mod", "depth": 0.15, "mode": "add" }
+        // The phrase-armed source wires like any note source (uncomment to hear it):
+        //   "m_glints": { "source": "glints", "dest": "instruments.poly.notes", "kind": "note", "voices": 2, "priority": 4 }
+    },
+    // ============================================================
+    //  SAFE BOUNDS (Tier-2, ADR 0010). Per-param hard `{min,max}` (NATIVE units, JSONPath-keyed)
+    //  the controller (drift / constraint attractor) must never exceed. The canonical default
+    //  table lives in the schema's `x-safe-bounds-defaults` (e.g. master_gain_db −8..0,
+    //  cutoff_hz 101..8000 and level_db −26..0 so a voice can't be driven to silence, every gain
+    //  at most 0 dB, fm_feedback 0..0.95); author `safe_bounds` only to OVERRIDE a default for this
+    //  doc. A route depth's band is keyed by its depth key (`matrix.<id>.depth_oct`). Tighten a
+    //  lever you want kept tame:
+    "safe_bounds": {
+        "instruments.poly.params.cutoff_hz": { "min": 200.95, "max": 5047.7 }, // keep the pad in a mid band
+        "global.master_gain_db": { "min": -6.02, "max": 0 }
+    },
+    // ============================================================
+    //  DRIFT CAPS (ADR 0025, both optional; values are a fraction of each param's range — a gain's
+    //  is scaled by 0.3, so 0.05 is about 1 dB, ADR 0054). `max_change` is the PER-LOOP
+    //  step cap |δ| (authored default; the runtime `--max-change` overrides it, else 0.05). `max_drift`
+    //  is the CUMULATIVE cap: how far drift may move a param from its AUTHORED value over the
+    //  whole session (default 0.15). A param's `constraints` band (below) or objectives `override`
+    //  takes precedence over max_drift; the Tier-2 safe range above is still the hard cap.
+    "max_change": 0.05,
+    "max_drift": 0.15,
+    // The reverb this doc plays through (written out by `engines-migrate` from v0.8's implied one; the
+    // instruments send into it at 0 dB). See SEND BUSES below.
+    "buses": { "rv": { "return_gain_db": -12.04, "effects": { "verb": { "type": "reverb", "params": { "room": 0.5, "damping": 0.5, "shimmer": 0, "width": 0.5, "predelay_ms": 0 } } } } },
+    // ============================================================
+    //  CONTROL SETTINGS (ADR 0033, all optional) — how the piece MOVES, kept in the doc so a piece is
+    //  self-contained (what used to live only in a separate objectives doc). New pieces start from the
+    //  repo-root `engines-defaults.json5`. CLI `--optimize` / `--orrery` layer over these; an
+    //  `--objectives <file>` replaces them. A live edit to `movement`/`constraints` applies at the next
+    //  loop (the Orrery keeps its state). Left commented here so the template renders with the
+    //  session defaults (drift, Orrery off):
+    //   "optimize": "drift",          // "hold" (freeze) | "drift" (bounded reflecting walk) | "live_edit"
+    //   "movement": {                 // the Orrery (generative harmony) — same shape as objectives_v0.1
+    //     "orrery": true,
+    //     "bind": { "chord": "chords", "bass": "bass_line", "arp": "arp_shimmer", "oneshot": ["event"] },
+    //     "phrase_loops": 2,          // loops per phrase (how often the chord can change)
+    //     "tension_target": 0.32,     // 0 = stay home … 1 = wander far
+    //     "arrange": { "return_hazard_scale": 1.0 }  // >1 returns home sooner, <1 wanders longer
+    //   },
+    //   "constraints": {              // Tier-3 bands, NATIVE units: drift reflects off the edges;
+    //     "instruments.poly.params.level_db": { "min": -9.9, "max": -9.9 }, // min == max freezes a param
+    //     "instruments.poly.params.cutoff_hz": { "min": 400, "max": 2000 }
+    //   },
+    // ============================================================
+    //  SEND BUSES / EFFECTS (optional; a doc without buses plays dry). Instruments add a
+    //  `sends_db: { "<bus>": dB }` map (-Infinity = no send); each bus runs an ordered (sorted-id)
+    //  effects chain composed as a fundsp graph and returns its wet to the master at
+    //  `return_gain_db` (default -Infinity: silent). Every effect param is a controller-steerable
+    //  JSONPath (buses.<bus>.effects.<fx>.params.<param>) except `width` (build-time-fixed). Shape:
+    //   "buses": {
+    //     "rv": {
+    //       "return_gain_db": -12,
+    //       "effects": { "verb": { "type": "reverb", "params": {
+    //         "room": 0.6, "damping": 0.4, "shimmer": 0.2, "width": 0.7, "predelay_ms": 12.0
+    //       }}}
+    //     },
+    //     //  DAW-AUDIO-RETURN (ADR 0026 phase D; at most one; pairs with the "ext_pad" midi
+    //     //  instrument above). Session/shell CONFIG — no effects, no audio in the core render:
+    //     //  `engines-play --return-device "BlackHole 2ch"` captures the loopback carrying the DAW
+    //     //  our MIDI drives and monitor-mixes it into the live output at return_gain_db
+    //     //  (latency_ms is parsed but inert since ADR 0031). Route the DAW's master ONLY to the
+    //     //  loopback.
+    //     "daw": { "type": "external_return", "return_gain_db": -2, "latency_ms": 120 }
+    //   }
+    // See contracts/loop_contract_v0.9.schema.json ($defs.bus / $defs.busEffect) and
+    // lab/tests/fixtures/loop_buses_shimmer.json for a worked example.
+    // ============================================================
+    //  SONG (optional, ADR 0029) — a "loop of loops" for finite, hours-long tracks. Omitted here so
+    //  this doc stays an open-ended loop. A song is an ordered `sequence` of BLOCKS; each block is
+    //  a MATRIX configuration (the top-level `matrix` above with a named layer merged over it by
+    //  route id: a field overrides, `null` removes a route, a full entry adds one) that lasts
+    //  `loops` inner loops. Blocks change the matrix and, through an optional `control`, the CONTROL
+    //  SETTINGS above (ADR 0055) — instruments, modulators, harmony, transport and globals hold for
+    //  the whole song, so voices/reverb tails run continuously. A block's `control` is a patch over
+    //  the session's, for that block only: `movement` merges field by field (`{ "orrery": false }`
+    //  turns the Orrery off — its voices play their authored material), `optimize` is "hold" |
+    //  "drift", `max_drift` / `max_change` cap drift (max_change only lowers the session's), and
+    //  `drift` overrides single params by JSONPath: "hold" (pinned at the authored value),
+    //  { "min", "max" } (NATIVE band) or { "max_drift" } (normalized cap around the authored value).
+    //  A live hold ⇄ drift / Orrery toggle wins for what it changes until the next block starts.
+    //  At each block start the controller RESETS (drift travel undone, the Orrery starts a fresh
+    //  voyage from home). The seam
+    //  GLIDES over `transition_s` (params ease back to authored, routes fade in/out, notes that
+    //  lose their route release). After the last block, `tail_loops` drop every note route so
+    //  releases + reverb ring out; then the song ends. Render it with `engines-song` (`--dry-run`
+    //  prints the block table). Loop length = master_steps·60/bpm, so here 5 h ≈ 1219 loops.
+    //   "song": {
+    //     "matrices": {
+    //       "sparse": { "m_spark": null, "m_breath_c": { "depth_oct": 0.13 } },  // no sparks, calmer filter
+    //       "bloom":  { "m_arp": null, "m_breath_c": { "depth_oct": 1.0 }, "m_swell": { "depth_db": 4.5 } }
+    //     },
+    //     "sequence": [
+    //       { "matrix": "sparse", "loops": 240, "label": "dusk" },
+    //       { "loops": 480 },                       // no matrix ⇒ the top-level matrix as-is
+    //       { "matrix": "bloom", "loops": 300,
+    //         "control": {                        // this block only (ADR 0055)
+    //           "max_drift": 0.08,                // a calmer drift than the doc's 0.15
+    //           "drift": {
+    //             "instruments.poly.params.cutoff_hz": "hold",               // the pad's filter stays put
+    //             "instruments.mono.params.drive_db": { "max_drift": 0.03 }  // barely moves
+    //           }
+    //           // with the Orrery on: "movement": { "orrery": false } holds the home chord here
+    //         } },
+    //       { "matrix": "sparse", "loops": 200, "seed": 7 }   // explicit seed: same seed ⇒ same voyage
+    //     ],
+    //     "transition_s": 10,  // seam glide (0 = hard cut); ≤ the shortest block
+    //     "tail_loops": 2      // release + ring-out loops after the last block
+    //   }
+    // See lab/tests/fixtures/song_idle_night.json5 for a worked 5.5 h example.
+    // ============================================================
+}

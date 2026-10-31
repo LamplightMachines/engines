@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Engines Live harness</title>
+<link rel="stylesheet" href="/media/tokens.css">
+<link rel="stylesheet" href="/media/panel.css">
+<style>
+  /* The harness's own chrome (not the panel's). */
+  #bar { position: sticky; top: 0; z-index: 9; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 6px 10px; background: #0d0d0d; color: #ccc; font: 12px system-ui, sans-serif; border-bottom: 1px solid #000; }
+  #bar select, #bar button { font: inherit; background: #222; color: #ddd; border: 1px solid #333; border-radius: 3px; padding: 2px 6px; }
+  #frame { margin: 12px; border: 1px dashed #333; resize: horizontal; overflow: auto; width: 500px; max-width: calc(100vw - 24px); }
+  #log { margin: 0 12px 12px; font: 11px ui-monospace, monospace; color: #8a8; white-space: pre-wrap; max-height: 140px; overflow: auto; }
+  /* VS Code's own high-contrast colours (dark, and light), as a webview sees them. */
+  body.vscode-high-contrast { --vscode-editor-background: #000; --vscode-foreground: #fff; --vscode-contrastBorder: #6fc3df; --vscode-focusBorder: #f38518; --vscode-button-secondaryBackground: #000; }
+  body.vscode-high-contrast-light { --vscode-editor-background: #fff; --vscode-foreground: #292929; --vscode-contrastBorder: #0f4a85; --vscode-focusBorder: #006bbd; --vscode-charts-green: #374e06; --vscode-editorWarning-foreground: #895503; --vscode-errorForeground: #b5200d; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <label>scenario <select id="scenario"></select></label>
+  <label>width <select id="width"><option>500</option><option>420</option><option>320</option><option>640</option></select></label>
+  <label>theme <select id="theme"><option value="">panel (dark)</option><option value="vscode-high-contrast">high contrast</option><option value="vscode-high-contrast-light">high contrast light</option></select></label>
+  <label><input type="checkbox" id="run" checked> run</label>
+</div>
+<div id="frame"><div id="app"></div></div>
+<pre id="log"></pre>
+<script>
+  // The VS Code webview API, stubbed: state in memory, messages logged.
+  let state;
+  const log = document.getElementById('log');
+  window.acquireVsCodeApi = () => ({
+    getState: () => state,
+    setState: (s) => { state = s; },
+    postMessage: (m) => { if (m.type !== 'ready') log.textContent = JSON.stringify(m) + '\n' + log.textContent; },
+  });
+  const pick = document.getElementById('scenario');
+  const params = new URLSearchParams(location.search);
+  fetch('/scenarios').then((r) => r.json()).then((names) => {
+    for (const n of names) pick.append(new Option(n, n));
+    pick.value = params.get('scenario') ?? 'song-playing';
+  });
+  const width = document.getElementById('width');
+  width.value = params.get('width') ?? '500';
+  const frame = document.getElementById('frame');
+  const setWidth = () => { frame.style.width = width.value + 'px'; };
+  width.onchange = setWidth;
+  setWidth();
+  const theme = document.getElementById('theme');
+  const setTheme = () => {
+    document.body.classList.remove('vscode-high-contrast', 'vscode-high-contrast-light');
+    if (theme.value) document.body.classList.add(theme.value);
+  };
+  theme.value = params.get('theme') ?? '';
+  theme.onchange = setTheme;
+  setTheme();
+  const t0 = performance.now();
+  let busy = false;
+  setInterval(async () => {
+    if (busy || (!document.getElementById('run').checked && window.__drawn)) return;
+    busy = true;
+    try {
+      const t = Math.round(performance.now() - t0 + 22 * 14545 * 0);
+      const m = await fetch(`/model?scenario=${encodeURIComponent(pick.value || params.get('scenario') || 'song-playing')}&t=${t + 5900}`).then((r) => r.json());
+      window.postMessage({ type: 'model', model: m }, '*');
+      window.__drawn = true;
+    } finally { busy = false; }
+  }, 1000 / 15);
+</script>
+<script src="/media/panel.js"></script>
+</body>
+</html>

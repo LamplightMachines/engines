@@ -1,0 +1,61 @@
+# CI: the Linux half of the test split, on every PR and on main. The Mac half (`make test-mac`: the goldens,
+# the end-to-end suites) reports as the `mac-suite` commit status, posted from a maintainer's Mac; the gate
+# job below (.github/scripts/mac-suite-gate.js) marks it "not needed" on a PR that touches nothing the Mac
+# suite covers, carries an earlier pass forward when nothing it covers changed since, and pending otherwise
+# (CONTRIBUTING.md). `ci` also runs the licence gate (`make audit`).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - name: ALSA headers (cpal and midir build against them)
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends libasound2-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: astral-sh/setup-uv@v10.3.2 # publishes no floating major tag
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: editors/vscode/package-lock.json
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny@0.20.2
+      - name: The licence gate (deny.toml, .github/scripts/licences.js)
+        run: make audit
+      - run: make test-ci
+
+  mac-suite-gate:
+    name: mac-suite gate
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            const { run } = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/mac-suite-gate.js`);
+            await run({ github, context, core });

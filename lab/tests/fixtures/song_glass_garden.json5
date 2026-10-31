@@ -1,0 +1,253 @@
+// ─────────────────────────────────────────────────────────────────────────────
+//  "Glass garden": a ~1-hour SONG (ADR 0029) — and the stem-export demo (ADR 0030:
+//  `engines-song --stems`, one loudness-normalized file per instrument + bus).
+//
+//  Deliberately NOT the house "centre drone" style (no fused harmonic-series centre, no
+//  mechanical pulse): bright, sparse, floating, in D LYDIAN (D E F# G# A B C# — the raised 4th,
+//  G#, is the colour). Six voices in separate registers, two contrasting reverbs:
+//
+//    forks   D6–D7   tuning-fork pings, sparse euclid that precesses against the bar
+//    vibes   D5–C#6  vibraphone phrases from sequence pools (fit:"chord" — snapped to lydian,
+//                    re-voiced to the chord under --orrery)
+//    harp    A4–A5   plucked arpeggio, Orrery `arp` role (density + pool follow the chords)
+//    pad     D4–F#5  soft triangle chords, Orrery `chord` role, slow 1.8 s swells
+//    air     noise   a band of filtered breath with slow gusts
+//    low     D2      a soft FM root, Orrery `bass` role
+//    room    bus     short, bright early-reflection reverb (the harp/vibes "wood")
+//    hall    bus     long, dark hall with a touch of octave shimmer (the forks/air "sky")
+//
+//  The song re-wires the matrix only (the voices and reverbs never change):
+//    dew     11 m  pad + forks + air + a few vibes — the garden waking, no harp, no bass
+//    bloom   20 m  everything: harp arpeggios, vibes phrases, the root underneath
+//    rain    16 m  pointillist: dense forks + harp, the pad thinned, no bass
+//    dusk    13 m  pad + low + slow vibes; forks/harp/air gone, the hall's shimmer opened
+//    tail    40 s  every note route dropped; releases + both reverbs ring out
+//  Loop = 12 beats @ 54 bpm = 13.33 s ⇒ 268 block loops + 3 tail loops = 1:00:13.
+//
+//  Gain staging (no master limiter, ADR 0021): master_gain_db and every level lever are frozen at
+//  their authored values by zero-width `safe_bounds` (min == max — drift moves timbre, never
+//  loudness); `max_drift` 0.10. Each block starts ≤ 0.7 FS (song_fixture_blocks_do_not_hard_clip).
+//
+//  Plan:    ./target/release/engines-song --doc lab/tests/fixtures/song_glass_garden.json5 --stems renders/glass_garden --dry-run
+//  Stems:   make song SONG=lab/tests/fixtures/song_glass_garden.json5 STEMS=renders/glass_garden -- --orrery
+//  Mix:     make song SONG=lab/tests/fixtures/song_glass_garden.json5 SONG_OUT=renders/glass_garden.flac -- --orrery
+// ─────────────────────────────────────────────────────────────────────────────
+{
+  schema_version: "0.9",
+  loop_id: 3011,
+  meta: {
+    created_by: "engines-song stems demo (ADR 0030)",
+    note: "Glass garden — a 1 h ADR 0029 song (dew → bloom → rain → dusk) in D lydian: bells, harp, pad, air and a soft root over a bright room + a dark hall.",
+  },
+
+  transport: {
+    bpm: 54,             // a beat = 1.11 s; eighths 0.56 s
+    master_steps: 12,    // 13.33 s loop
+    step_unit: "beat",
+    swing: 0.0,
+    timing_jitter_ms: 9, // seeded ±9 ms on every strike — hand-played, not quantized
+  },
+  harmony: { root: "D", mode: "lydian" },
+
+  global: { master_gain_db: -11.06, stereo_width: 0.62 },
+  max_drift: 0.10,
+  // Level-ish levers frozen at their authored values (a zero-width band pins a lever, ADR 0032).
+  safe_bounds: {
+    "global.master_gain_db": { min: -11.06, max: -11.06 },
+    "instruments.pad.params.level_db": { min: -15.39, max: -15.39 },
+    "instruments.vibes.params.level_db": { min: -6.02, max: -6.02 },
+    "instruments.forks.params.level_db": { min: -11.7, max: -11.7 },
+    "instruments.harp.params.level_db": { min: -11.06, max: -11.06 },
+    "instruments.air.params.level_db": { min: -15.92, max: -15.92 },
+    "instruments.low.params.level_db": { min: -11.06, max: -11.06 },
+    "instruments.low.params.drive_db": { min: 3.23, max: 3.23 },
+    "buses.room.return_gain_db": { min: -6.94, max: -6.94 },
+    "buses.hall.return_gain_db": { min: -6.02, max: -6.02 },
+  },
+
+  instruments: {
+    // Soft triangle chords: slow swell in, long release, gently detuned.
+    pad: {
+      enabled: true, pitched: true, note_engine: { polyphony: 4, glide_ms: 700 },
+      params: { wave: "triangle", voices_detune_cents: 4, level_db: -15.39, cutoff_hz: 800, resonance: 0.05,
+                attack_s: 1.8, decay_s: 0.9, sustain: 0.85, release_s: 3.2 },
+      sends_db: { room: -16.48, hall: -5.19 },
+    },
+    // Vibraphone: 5 inharmonic modes; the ring follows each phrase note's `dur` and blooms past it.
+    vibes: {
+      enabled: true, pitched: true, type: "modal", note_engine: { polyphony: 4, glide_ms: 0 },
+      params: { material: "vibraphone", num_modes: 5, t60_mode: "note", ring_ratio: 1.181,
+                brightness: 0.5, strike_pos: 0.28, stretch: 0.0, level_db: -6.02 },
+      sends_db: { room: -9.12, hall: -6.94 },
+    },
+    // Tuning forks: near-pure (1, 6.27, 17.55) with a fixed ~2.9 s ring — glass in the sky.
+    forks: {
+      enabled: true, pitched: true, type: "modal", note_engine: { polyphony: 4, glide_ms: 0 },
+      params: { material: "tuning_fork", num_modes: 3, t60_mode: "fixed", t60_s: 2.899,
+                brightness: 0.6, strike_pos: 0.15, stretch: 0.0, level_db: -11.7 },
+      sends_db: { room: -20, hall: -2.5 },
+    },
+    // Plucked harp: zero attack, short decay, no sustain; a little drive for the string edge.
+    harp: {
+      enabled: true, pitched: true, note_engine: { polyphony: 4, glide_ms: 0 },
+      params: { wave: "saw_soft", level_db: -11.06, cutoff_hz: 1390.2, resonance: 0.12, drive_db: 3.75,
+                attack_s: 0, decay_s: 0.66, sustain: 0.0, release_s: 1.28 },
+      sends_db: { room: -6.02, hall: -10.46 },
+    },
+    // Air: a high band of filtered noise, held — the gusts are an LFO on its level_db and band_hi_hz.
+    air: {
+      enabled: true, pitched: false, note_engine: { polyphony: 1, glide_ms: 0 },
+      params: { source: "filtered_noise", band_lo_hz: 904.59, band_hi_hz: 2313.2, level_db: -15.92,
+                attack_s: 2.4, decay_s: 0.9, sustain: 0.9, release_s: 3.2 },
+      sends_db: { room: -26.02, hall: -4.44 },
+    },
+    // The root: a soft dual-osc FM tone (ratio 1 ⇒ harmonic sidebands), mostly fundamental.
+    low: {
+      enabled: true, pitched: true, type: "dual", note_engine: { polyphony: 1, glide_ms: 900 },
+      params: { osc_a_wave: "sine", osc_b_wave: "sine", osc_a_level_db: -1.94, osc_b_level_db: -Infinity,
+                osc_b_ratio: 1.0, osc_b_detune_cents: 0, fm_index: 0.12, fm_feedback: 0.0, drive_db: 3.23,
+                level_db: -11.06, cutoff_hz: 1007.1, attack_s: 1.5, decay_s: 0.9, sustain: 0.85, release_s: 2.8 },
+      sends_db: { room: -26.02, hall: -13.98 },
+    },
+  },
+
+  modulators: {
+    // ── slow, free-running motion ────────────────────────────────────────────────────
+    lfo_drift: { type: "lfo", output: "control", wave: "sine", sync: "free", rate_hz: 0.017, polarity: "bipolar" },
+    lfo_gust:  { type: "lfo", output: "control", wave: "sine", sync: "free", rate_hz: 0.051, polarity: "unipolar" },
+    lfo_tilt:  { type: "lfo", output: "control", wave: "sine", sync: "free", rate_hz: 0.029, polarity: "bipolar" },
+    // A constant 1.0 — a block's trim: a route at depth_db / depth_oct d adds a fixed d to its dest.
+    unity: { type: "step_seq", output: "control", sync: "loop", length: 1, entry_value: 1.0, steps: [ { step: 0, value: 1.0 } ] },
+
+    // ── harmony: the Orrery's chord + bass. Home = Dmaj7 open (D A C# F#); stable ids ⇒ glides.
+    pad_chords: { type: "step_seq", output: "note", sync: "loop", length: 12, orrery_role: "chord",
+                  steps: [ { step: 0, voicing: { v1: { offset: 0 }, v2: { offset: 7 }, v3: { offset: 11 }, v4: { offset: 16 } } } ] },
+    root: { type: "step_seq", output: "note", sync: "loop", length: 12, orrery_role: "bass",
+            steps: [ { step: 0, voicing: { r: { offset: -24 } } } ] },                       // D2 ≈ 73 Hz
+    breath: { type: "step_seq", output: "note", sync: "loop", length: 12,
+              steps: [ { step: 0, voicing: { n: { offset: 0 } } } ] },                        // held — one breath
+
+    // ── harp: euclid arp in eighths (one host step = "1/24" of the loop). Orrery `arp` role:
+    //    the Arranger sets the density and re-fills the pool from the current chord. ──────
+    harp_arp: { type: "step_seq", output: "note", sync: "loop", length: 24, step_duration: "1/24",
+                orrery_role: "arp", humanize_ms: 10,
+                generator: { kind: "euclid", pulses: 7, rotation: 2 },
+                pitch_walk: { pool: [7, 11, 14, 16, 18], order: "up" } },                    // A4 C#5 E5 F#5 G#5
+
+    // ── vibes: phrase arms (ADR 0028), one host step = a beat. Two arms on the same pools'
+    //    tags: `vibes_calm` for the dew/dusk blocks, `vibes_full` (incl. the busy entries). ─
+    vibes_full: { type: "step_seq", output: "note", sync: "loop", length: 12, step_duration: "1/12",
+                  orrery_role: "oneshot", humanize_ms: 12,
+                  phrase: { pool: ["petals", "dewdrops", "climb", "hush", "lib:sigh"], select: "seeded" } },
+    vibes_calm: { type: "step_seq", output: "note", sync: "loop", length: 12, step_duration: "1/12",
+                  orrery_role: "oneshot", humanize_ms: 12,
+                  phrase: { pool: ["petals", "dewdrops", "hush"], select: "seeded" } },
+
+    // ── forks: free-running euclids whose period (23 eighths) doesn't divide the 24-eighth bar,
+    //    so the pings precess against the loop. Sparse for most blocks; dense for "rain".
+    //    `context` + `orrery_disable`: fixed pitches the voyage FITS AROUND — their pools (with the
+    //    lydian G#) form the Orrery's harmonic floor, steering it off borrowed G-natural chords. ──
+    forks_sparse: { type: "step_seq", output: "note", sync: "free", length: 23, step_duration: "1/24", humanize_ms: 15,
+                    orrery_role: "context", orrery_disable: true,
+                    generator: { kind: "euclid", pulses: 3, rotation: 5 },
+                    pitch_walk: { pool: [24, 31, 30, 33, 28, 36], order: "random" } },        // D6 A6 G#6 B6 F#6 D7
+    forks_rain:   { type: "step_seq", output: "note", sync: "free", length: 23, step_duration: "1/48", humanize_ms: 20,
+                    orrery_role: "context", orrery_disable: true,
+                    generator: { kind: "euclid", pulses: 9, rotation: 3 },
+                    pitch_walk: { pool: [24, 28, 31, 30, 33, 35, 36], order: "random" } },
+  },
+
+  // ── SEQUENCE POOLS (ADR 0028): t/dur in host steps (beats); fit:"chord" ⇒ snapped to D lydian
+  //    under a plain render, re-voiced to the current chord under --orrery. Offsets from D4. ──
+  sequence_pools: {
+    // A slow three-note figure that lands on the lydian #4 (G#5) and settles on F#.
+    petals: {
+      fit: "chord", tags: ["calm"], length: 6,
+      notes: [ { t: 0.0, offset: 14, dur: 2.0 }, { t: 2.5, offset: 18, dur: 1.5, prob: 0.8 }, { t: 4.0, offset: 16, dur: 1.8, prob: 0.7 } ],
+    },
+    // Two drops off the beat, often only one.
+    dewdrops: {
+      fit: "chord", tags: ["sparse", "calm"], length: 4,
+      notes: [ { t: 0.5, offset: 21, dur: 1.2, prob: 0.55 }, { t: 2.25, offset: 19, dur: 1.5, prob: 0.45 } ],
+    },
+    // A rising triplet sweep — the busy entry for full energy.
+    climb: {
+      fit: "chord", tags: ["busy"], length: 4,
+      notes: [
+        { t: 0.0, offset: 12, dur: 0.8 }, { t: 0.667, offset: 16, dur: 0.8 }, { t: 1.333, offset: 19, dur: 0.8 },
+        { t: 2.0, offset: 23, dur: 1.6, prob: 0.85 }, { t: 3.0, offset: 21, dur: 0.9, prob: 0.5 },
+      ],
+    },
+    // One long tone, often none — space.
+    hush: {
+      fit: "chord", tags: ["sparse"], length: 6,
+      notes: [ { t: 3.0, offset: 14, dur: 2.5, prob: 0.5 } ],
+    },
+  },
+
+  matrix: {
+    // slow motion
+    m_pad_breath:  { source: "lfo_drift", dest: "instruments.pad.params.cutoff_hz", kind: "mod", depth_oct: 0.532, mode: "add", depth_slew_ms: 2000 },
+    m_hall_shim:   { source: "lfo_drift", dest: "buses.hall.effects.verb.params.shimmer", kind: "mod", depth: 0.08, mode: "add", depth_slew_ms: 2000 },
+    m_gust_level:  { source: "lfo_gust",  dest: "instruments.air.params.level_db", kind: "mod", depth_db: 2.77, mode: "add", depth_slew_ms: 1500 },
+    m_gust_band:   { source: "lfo_gust",  dest: "instruments.air.params.band_hi_hz", kind: "mod", depth_oct: 0.452, mode: "add", depth_slew_ms: 1500 },
+    m_vibes_tilt:  { source: "lfo_tilt",  dest: "instruments.vibes.params.brightness", kind: "mod", depth: 0.12, mode: "add", depth_slew_ms: 2000 },
+    // notes
+    m_pad:   { source: "pad_chords",   dest: "instruments.pad.notes",   kind: "note", voices: 4, priority: 1 },
+    m_low:   { source: "root",         dest: "instruments.low.notes",   kind: "note", voices: 1, priority: 1 },
+    m_air:   { source: "breath",       dest: "instruments.air.notes",   kind: "note", voices: 1, priority: 1 },
+    m_harp:  { source: "harp_arp",     dest: "instruments.harp.notes",  kind: "note", voices: 4, priority: 2 },
+    m_vibes: { source: "vibes_full",   dest: "instruments.vibes.notes", kind: "note", voices: 4, priority: 2 },
+    m_forks: { source: "forks_sparse", dest: "instruments.forks.notes", kind: "note", voices: 4, priority: 3 },
+  },
+
+  buses: {
+    // Short and bright: early reflections that give the plucked/struck voices a body.
+    room: {
+      return_gain_db: -6.94,
+      effects: { verb: { type: "reverb", params: { room: 0.32, damping: 0.15, shimmer: 0.0, width: 0.7, predelay_ms: 6 } } },
+    },
+    // Long and dark, a little octave shimmer: where the forks and the air hang.
+    hall: {
+      return_gain_db: -6.02,
+      effects: { verb: { type: "reverb", params: { room: 0.93, damping: 0.6, shimmer: 0.12, width: 0.95, predelay_ms: 45 } } },
+    },
+  },
+
+  // ============================================================
+  //  SONG (ADR 0029) — layers merge over `matrix` above by route id (null removes a route).
+  song: {
+    matrices: {
+      // Waking: pad, sparse forks, air and the occasional vibes phrase; no harp, no root.
+      dew: {
+        m_harp: null,
+        m_low: null,
+        m_vibes: { source: "vibes_calm" },
+      },
+      // Rain: dense forks and the harp; the pad thinned and darker; no root; gustier air.
+      rain: {
+        m_low: null,
+        m_forks: { source: "forks_rain" },
+        m_pad_trim: { source: "unity", dest: "instruments.pad.params.level_db", kind: "mod", depth_db: -5.52 },
+        m_pad_dark: { source: "unity", dest: "instruments.pad.params.cutoff_hz", kind: "mod", depth_oct: -0.532 },
+        m_gust_level: { depth_db: 3.88 },
+      },
+      // Dusk: the pad, the root and slow vibes; forks, harp and air gone; the hall shimmers.
+      dusk: {
+        m_forks: null,
+        m_harp: null,
+        m_air: null,
+        m_vibes: { source: "vibes_calm" },
+        m_hall_shim: { depth: 0.16 },
+      },
+    },
+    sequence: [
+      { matrix: "dew", loops: 50, label: "dew" },               // 0:00:00 – 0:11:07
+      { loops: 90, label: "bloom" },                             // 0:11:07 – 0:31:07 (the base matrix)
+      { matrix: "rain", loops: 70, label: "rain" },             // 0:31:07 – 0:46:40
+      { matrix: "dusk", loops: 58, label: "dusk", seed: 11 },   // 0:46:40 – 0:59:33
+    ],
+    transition_s: 12, // each seam glides over 12 s
+    tail_loops: 3,    // 40 s of release + hall ring-out
+  },
+}

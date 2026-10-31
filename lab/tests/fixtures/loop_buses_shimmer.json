@@ -1,0 +1,58 @@
+{
+  "schema_version": "0.9",
+  "loop_id": 1,
+  "meta": { "name": "buses shimmer demo", "note": "explicit send-bus + octave-up shimmer reverb" },
+  "transport": { "bpm": 60, "master_steps": 8, "step_unit": "beat" },
+  "harmony": { "root": "D", "mode": "dorian" },
+  "global": { "master_gain_db": -12.04, "stereo_width": 0.6 },
+  "safe_bounds": { "global.master_gain_db": { "min": -12.4, "max": -10.46 } },
+  "instruments": {
+    "pad": {
+      "enabled": true,
+      "pitched": true,
+      "note_engine": { "polyphony": 3, "glide_ms": 0 },
+      "params": { "wave": "saw_soft", "level_db": -6.02, "cutoff_hz": 635.46, "resonance": 0.2, "attack_s": 1.2, "decay_s": 0, "sustain": 1.0, "release_s": 3.2 },
+      "sends_db": { "rv": 0 }
+    },
+    "bell": {
+      "enabled": true,
+      "pitched": true,
+      "note_engine": { "polyphony": 2, "glide_ms": 0 },
+      "params": { "wave": "sine_bell", "level_db": -7.96, "cutoff_hz": 3184.9, "attack_s": 0, "decay_s": 0.9, "sustain": 0.0, "release_s": 0.8 },
+      "sends_db": { "rv": -0.92 }
+    }
+  },
+  "modulators": {
+    "chords": {
+      "type": "step_seq", "output": "note", "sync": "loop", "length": 8,
+      "steps": [
+        { "step": 0, "voicing": { "v1": { "offset": 0 }, "v2": { "offset": 3 }, "v3": { "offset": 7 } } },
+        { "step": 4, "voicing": { "v1": { "offset": 5 }, "v2": { "offset": 8 }, "v3": { "offset": 12 } } }
+      ]
+    },
+    "sparkle": {
+      "type": "step_seq", "output": "note", "sync": "loop", "length": 8,
+      "steps": [
+        { "step": 2, "voicing": { "v1": { "offset": 19 } } },
+        { "step": 6, "voicing": { "v1": { "offset": 24 } } }
+      ]
+    },
+    "lfo_breath": { "type": "lfo", "output": "control", "wave": "sine", "sync": "free", "rate_hz": 0.07, "polarity": "unipolar" }
+  },
+  "matrix": {
+    "m_chords": { "source": "chords", "dest": "instruments.pad.notes", "kind": "note", "voices": 3, "priority": 1 },
+    "m_bell": { "source": "sparkle", "dest": "instruments.bell.notes", "kind": "note", "voices": 1, "priority": 2 },
+    "m_shimmer": { "source": "lfo_breath", "dest": "buses.rv.effects.verb.params.shimmer", "kind": "mod", "depth": 0.4, "mode": "add" }
+  },
+  "buses": {
+    "rv": {
+      "return_gain_db": -6.94,
+      "effects": {
+        "verb": {
+          "type": "reverb",
+          "params": { "room": 0.75, "damping": 0.35, "shimmer": 0.25, "width": 0.8, "predelay_ms": 18.0 }
+        }
+      }
+    }
+  }
+}

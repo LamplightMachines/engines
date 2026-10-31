@@ -1,0 +1,777 @@
+{
+  "schema_version": "0.9",
+  "loop_id": 7000,
+  "meta": {
+    "created_by": "synth-types-showcase",
+    "note": "Modern ambient showcase: dual (with/without FM), modal tuning-fork + resonators, square bass drone, two arps, orrery pad, 4/4 kick+hihat on a 16-step bar with the chords/bass/arps locked to that grid (4-bar / 16 s loop), two beating near-audio LFOs (res @90 / level @94), ocean-wave noise band, lush modulated shimmer reverb, varied attacks."
+  },
+  "transport": {
+    "bpm": 60,
+    "master_steps": 16,
+    "step_unit": "beat"
+  },
+  "harmony": {
+    "root": "D",
+    "mode": "dorian"
+  },
+  "global": {
+    "master_gain_db": -12.04,
+    "stereo_width": 0.6
+  },
+  "safe_bounds": {
+    "global.master_gain_db": {
+      "min": -13.98,
+      "max": -12.04
+    }
+  },
+  "instruments": {
+    "pad": {
+      "type": "dual",
+      "enabled": true,
+      "pitched": true,
+      "note_engine": {
+        "polyphony": 4,
+        "glide_ms": 800
+      },
+      "params": {
+        "osc_a_wave": "sine",
+        "osc_b_wave": "triangle",
+        "osc_a_level_db": -3.1,
+        "osc_b_level_db": -6.02,
+        "osc_b_ratio": 1.0,
+        "osc_b_detune_cents": 6,
+        "fm_index": 0.0,
+        "fm_feedback": 0.0,
+        "level_db": -8.4,
+        "cutoff_hz": 1007.1,
+        "resonance": 0.1,
+        "attack_s": 0.51,
+        "decay_s": 0.9,
+        "sustain": 0.85,
+        "release_s": 2.8
+      },
+      "sends_db": {
+        "rv": 0
+      }
+    },
+    "fmlead": {
+      "type": "dual",
+      "enabled": true,
+      "pitched": true,
+      "note_engine": {
+        "polyphony": 4,
+        "glide_ms": 0
+      },
+      "params": {
+        "osc_a_wave": "sine",
+        "osc_b_wave": "sine",
+        "osc_a_level_db": -9.12,
+        "osc_b_level_db": -20,
+        "osc_b_ratio": 3.5,
+        "osc_b_detune_cents": 0,
+        "fm_index": 0.45,
+        "fm_feedback": 0.15,
+        "level_db": -21.94,
+        "cutoff_hz": 1156.4,
+        "resonance": 0.1,
+        "drive_db": 5.58,
+        "attack_s": 0.06,
+        "decay_s": 1.2,
+        "sustain": 0.4,
+        "release_s": 2
+      },
+      "sends_db": {
+        "rv": -1.41
+      }
+    },
+    "fork": {
+      "type": "modal",
+      "enabled": true,
+      "pitched": true,
+      "note_engine": {
+        "polyphony": 3,
+        "glide_ms": 0
+      },
+      "params": {
+        "material": "tuning_fork",
+        "num_modes": 3,
+        "t60_s": 1.932,
+        "brightness": 0.85,
+        "strike_pos": 0.3,
+        "stretch": 0.0,
+        "level_db": -6.02
+      },
+      "sends_db": {
+        "rv": 0
+      }
+    },
+    "mallet": {
+      "type": "modal",
+      "enabled": true,
+      "pitched": true,
+      "note_engine": {
+        "polyphony": 4,
+        "glide_ms": 0
+      },
+      "params": {
+        "material": "resonators",
+        "num_modes": 5,
+        "t60_s": 0.381,
+        "brightness": 0.6,
+        "strike_pos": 0.35,
+        "stretch": 0.15,
+        "level_db": -5.68
+      },
+      "sends_db": {
+        "rv": -1.94
+      }
+    },
+    "bass": {
+      "enabled": true,
+      "pitched": true,
+      "note_engine": {
+        "polyphony": 1,
+        "glide_ms": 600
+      },
+      "params": {
+        "wave": "square",
+        "voices_detune_cents": 3,
+        "level_db": -7.54,
+        "cutoff_hz": 220.34,
+        "resonance": 0.15,
+        "drive_db": 7.42,
+        "attack_s": 0.3,
+        "decay_s": 0.9,
+        "sustain": 0.9,
+        "release_s": 2.4
+      },
+      "sends_db": {
+        "rv": -13.15
+      }
+    },
+    "kick": {
+      "enabled": true,
+      "pitched": true,
+      "note_engine": {
+        "polyphony": 2,
+        "glide_ms": 0
+      },
+      "params": {
+        "wave": "sine",
+        "level_db": -4.44,
+        "cutoff_hz": 318.49,
+        "drive_db": 10.24,
+        "attack_s": 0,
+        "decay_s": 0.42,
+        "sustain": 0.0,
+        "release_s": 0.24
+      },
+      "sends_db": {
+        "rv": -20
+      }
+    },
+    "hat": {
+      "enabled": true,
+      "pitched": false,
+      "note_engine": {
+        "polyphony": 3,
+        "glide_ms": 0
+      },
+      "params": {
+        "source": "filtered_noise",
+        "band_lo_hz": 1237,
+        "band_hi_hz": 3420.6,
+        "level_db": -10.46,
+        "attack_s": 0,
+        "decay_s": 0.12,
+        "sustain": 0.0,
+        "release_s": 0.12
+      },
+      "sends_db": {
+        "rv": -7.96
+      }
+    },
+    "ocean": {
+      "enabled": true,
+      "pitched": false,
+      "note_engine": {
+        "polyphony": 1,
+        "glide_ms": 0
+      },
+      "params": {
+        "source": "filtered_noise",
+        "band_lo_hz": 174.94,
+        "band_hi_hz": 687.9,
+        "level_db": -10.46,
+        "attack_s": 1.8,
+        "decay_s": 0.9,
+        "sustain": 0.8,
+        "release_s": 4
+      },
+      "sends_db": {
+        "rv": -0.45
+      }
+    },
+    "drone_res": {
+      "type": "dual",
+      "enabled": true,
+      "pitched": true,
+      "note_engine": {
+        "polyphony": 1,
+        "glide_ms": 0
+      },
+      "params": {
+        "osc_a_wave": "sine",
+        "osc_b_wave": "sine",
+        "osc_a_level_db": -3.1,
+        "osc_b_level_db": -10.46,
+        "osc_b_ratio": 1.0,
+        "osc_b_detune_cents": 2.5,
+        "fm_index": 0.0,
+        "fm_feedback": 0.0,
+        "level_db": -11.7,
+        "cutoff_hz": 252.98,
+        "resonance": 0.3,
+        "attack_s": 1.2,
+        "decay_s": 1.2,
+        "sustain": 0.9,
+        "release_s": 1.2
+      },
+      "sends_db": {
+        "rv": -1.94
+      }
+    },
+    "drone_lvl": {
+      "enabled": true,
+      "pitched": true,
+      "note_engine": {
+        "polyphony": 1,
+        "glide_ms": 0
+      },
+      "params": {
+        "wave": "triangle",
+        "voices_detune_cents": 2,
+        "level_db": -9.37,
+        "cutoff_hz": 318.49,
+        "resonance": 0.1,
+        "attack_s": 2.49,
+        "decay_s": 0.9,
+        "sustain": 0.85,
+        "release_s": 1.52
+      },
+      "sends_db": {
+        "rv": -1.94
+      }
+    }
+  },
+  "modulators": {
+    "chords": {
+      "type": "step_seq",
+      "output": "note",
+      "sync": "loop",
+      "length": 16,
+      "steps": [
+        {
+          "step": 0,
+          "voicing": {
+            "v1": {
+              "offset": 0
+            },
+            "v2": {
+              "offset": 7
+            },
+            "v3": {
+              "offset": 10
+            },
+            "v4": {
+              "offset": 14
+            }
+          }
+        },
+        {
+          "step": 4,
+          "voicing": {
+            "v1": {
+              "offset": 2
+            },
+            "v2": {
+              "offset": 5
+            },
+            "v3": {
+              "offset": 9
+            },
+            "v4": {
+              "offset": 14
+            }
+          }
+        },
+        {
+          "step": 8,
+          "voicing": {
+            "v1": {
+              "offset": 3
+            },
+            "v2": {
+              "offset": 7
+            },
+            "v3": {
+              "offset": 10
+            },
+            "v4": {
+              "offset": 15
+            }
+          }
+        },
+        {
+          "step": 12,
+          "voicing": {
+            "v1": {
+              "offset": 0
+            },
+            "v2": {
+              "offset": 5
+            },
+            "v3": {
+              "offset": 9
+            },
+            "v4": {
+              "offset": 12
+            }
+          }
+        }
+      ]
+    },
+    "bass_seq": {
+      "type": "step_seq",
+      "output": "note",
+      "sync": "loop",
+      "length": 16,
+      "steps": [
+        {
+          "step": 0,
+          "voicing": {
+            "b": {
+              "offset": -24
+            }
+          }
+        },
+        {
+          "step": 4,
+          "voicing": {
+            "b": {
+              "offset": -22
+            }
+          }
+        },
+        {
+          "step": 8,
+          "voicing": {
+            "b": {
+              "offset": -21
+            }
+          }
+        },
+        {
+          "step": 12,
+          "voicing": {
+            "b": {
+              "offset": -19
+            }
+          }
+        }
+      ]
+    },
+    "arp1": {
+      "type": "step_seq",
+      "output": "note",
+      "sync": "loop",
+      "length": 16,
+      "step_duration": "1/64",
+      "generator": {
+        "kind": "euclid",
+        "pulses": 7,
+        "rotation": 1
+      },
+      "pitch_walk": {
+        "pool": [
+          12,
+          15,
+          19,
+          22
+        ],
+        "order": "up"
+      }
+    },
+    "arp2": {
+      "type": "step_seq",
+      "output": "note",
+      "sync": "loop",
+      "length": 32,
+      "step_duration": "1/64",
+      "generator": {
+        "kind": "euclid",
+        "pulses": 11,
+        "rotation": 2
+      },
+      "pitch_walk": {
+        "pool": [
+          19,
+          22,
+          24,
+          27
+        ],
+        "order": "up"
+      }
+    },
+    "sparkle": {
+      "type": "step_seq",
+      "output": "note",
+      "sync": "loop",
+      "length": 32,
+      "step_duration": "1/64",
+      "generator": {
+        "kind": "euclid",
+        "pulses": 5,
+        "rotation": 3
+      },
+      "pitch_walk": {
+        "pool": [
+          24,
+          27,
+          31
+        ],
+        "order": "random"
+      }
+    },
+    "kick_seq": {
+      "type": "step_seq",
+      "output": "note",
+      "sync": "loop",
+      "length": 16,
+      "step_duration": "1/64",
+      "orrery_disable": true,
+      "generator": {
+        "kind": "euclid",
+        "pulses": 2,
+        "rotation": 0
+      },
+      "pitch_walk": {
+        "pool": [
+          -24
+        ],
+        "order": "up"
+      }
+    },
+    "hat_seq": {
+      "type": "step_seq",
+      "output": "note",
+      "sync": "loop",
+      "length": 16,
+      "step_duration": "1/64",
+      "orrery_disable": true,
+      "generator": {
+        "kind": "euclid",
+        "pulses": 8,
+        "rotation": 0
+      }
+    },
+    "ocean_trig": {
+      "type": "step_seq",
+      "output": "note",
+      "sync": "loop",
+      "length": 1,
+      "orrery_disable": true,
+      "steps": [
+        {
+          "step": 0,
+          "voicing": {
+            "oc": {
+              "offset": 0
+            }
+          }
+        }
+      ]
+    },
+    "droneA_trig": {
+      "type": "step_seq",
+      "output": "note",
+      "sync": "loop",
+      "length": 1,
+      "steps": [
+        {
+          "step": 0,
+          "voicing": {
+            "da": {
+              "offset": -5
+            }
+          }
+        }
+      ]
+    },
+    "droneB_trig": {
+      "type": "step_seq",
+      "output": "note",
+      "sync": "loop",
+      "length": 1,
+      "steps": [
+        {
+          "step": 0,
+          "voicing": {
+            "db": {
+              "offset": -5
+            }
+          }
+        }
+      ]
+    },
+    "breath": {
+      "type": "lfo",
+      "output": "control",
+      "wave": "sine",
+      "sync": "free",
+      "rate_hz": 0.05,
+      "polarity": "bipolar"
+    },
+    "res_lfo": {
+      "type": "lfo",
+      "output": "control",
+      "wave": "sine",
+      "sync": "free",
+      "rate_hz": 90.0,
+      "polarity": "bipolar"
+    },
+    "lvl_lfo": {
+      "type": "lfo",
+      "output": "control",
+      "wave": "sine",
+      "sync": "free",
+      "rate_hz": 94.0,
+      "polarity": "bipolar"
+    },
+    "ocean_lfo": {
+      "type": "lfo",
+      "output": "control",
+      "wave": "sine",
+      "sync": "free",
+      "rate_hz": 0.07,
+      "polarity": "bipolar"
+    },
+    "ocean_lfo2": {
+      "type": "lfo",
+      "output": "control",
+      "wave": "triangle",
+      "sync": "free",
+      "rate_hz": 0.05,
+      "polarity": "bipolar"
+    },
+    "shimmer_lfo": {
+      "type": "lfo",
+      "output": "control",
+      "wave": "sine",
+      "sync": "free",
+      "rate_hz": 0.04,
+      "polarity": "unipolar"
+    },
+    "bass_cut_lfo": {
+      "type": "lfo",
+      "output": "control",
+      "wave": "sine",
+      "sync": "free",
+      "rate_hz": 0.03,
+      "polarity": "bipolar"
+    },
+    "droneB_cut_lfo": {
+      "type": "lfo",
+      "output": "control",
+      "wave": "triangle",
+      "sync": "free",
+      "rate_hz": 0.06,
+      "polarity": "bipolar"
+    },
+    "swell": {
+      "type": "step_seq",
+      "output": "control",
+      "sync": "loop",
+      "length": 4,
+      "step_duration": "1/8",
+      "interp": "smooth",
+      "entry_value": 0.2,
+      "steps": [
+        {
+          "step": 0,
+          "value": 0.2
+        },
+        {
+          "step": 2,
+          "value": 0.7
+        }
+      ]
+    }
+  },
+  "matrix": {
+    "m_chords": {
+      "source": "chords",
+      "dest": "instruments.pad.notes",
+      "kind": "note",
+      "voices": 4,
+      "priority": 1
+    },
+    "m_bass": {
+      "source": "bass_seq",
+      "dest": "instruments.bass.notes",
+      "kind": "note",
+      "voices": 1,
+      "priority": 1
+    },
+    "m_arp1": {
+      "source": "arp1",
+      "dest": "instruments.fmlead.notes",
+      "kind": "note",
+      "voices": 4,
+      "priority": 2
+    },
+    "m_arp2": {
+      "source": "arp2",
+      "dest": "instruments.mallet.notes",
+      "kind": "note",
+      "voices": 4,
+      "priority": 2
+    },
+    "m_sparkle": {
+      "source": "sparkle",
+      "dest": "instruments.fork.notes",
+      "kind": "note",
+      "voices": 3,
+      "priority": 3
+    },
+    "m_kick": {
+      "source": "kick_seq",
+      "dest": "instruments.kick.notes",
+      "kind": "note",
+      "voices": 2,
+      "priority": 1
+    },
+    "m_hat": {
+      "source": "hat_seq",
+      "dest": "instruments.hat.notes",
+      "kind": "note",
+      "voices": 3,
+      "priority": 3
+    },
+    "m_ocean": {
+      "source": "ocean_trig",
+      "dest": "instruments.ocean.notes",
+      "kind": "note",
+      "voices": 1,
+      "priority": 1
+    },
+    "m_droneA": {
+      "source": "droneA_trig",
+      "dest": "instruments.drone_res.notes",
+      "kind": "note",
+      "voices": 1,
+      "priority": 1
+    },
+    "m_droneB": {
+      "source": "droneB_trig",
+      "dest": "instruments.drone_lvl.notes",
+      "kind": "note",
+      "voices": 1,
+      "priority": 1
+    },
+    "m_breath": {
+      "source": "breath",
+      "dest": "instruments.pad.params.cutoff_hz",
+      "kind": "mod",
+      "depth_oct": 1.196,
+      "mode": "add",
+      "depth_slew_ms": 1500
+    },
+    "m_res": {
+      "source": "res_lfo",
+      "dest": "instruments.drone_res.params.resonance",
+      "kind": "mod",
+      "depth": 0.5,
+      "mode": "add"
+    },
+    "m_lvl": {
+      "source": "lvl_lfo",
+      "dest": "instruments.drone_lvl.params.level_db",
+      "kind": "mod",
+      "depth_db": 6.15,
+      "mode": "add"
+    },
+    "m_ocean_band": {
+      "source": "ocean_lfo",
+      "dest": "instruments.ocean.params.band_lo_hz",
+      "kind": "mod",
+      "depth_oct": 1.411,
+      "mode": "add",
+      "depth_slew_ms": 2000
+    },
+    "m_ocean_lvl": {
+      "source": "ocean_lfo2",
+      "dest": "instruments.ocean.params.level_db",
+      "kind": "mod",
+      "depth_db": 4.78,
+      "mode": "add",
+      "depth_slew_ms": 2000
+    },
+    "m_shimmer": {
+      "source": "shimmer_lfo",
+      "dest": "buses.rv.effects.verb.params.shimmer",
+      "kind": "mod",
+      "depth": 0.3,
+      "mode": "add",
+      "depth_slew_ms": 2000
+    },
+    "m_room": {
+      "source": "breath",
+      "dest": "buses.rv.effects.verb.params.room",
+      "kind": "mod",
+      "depth": 0.1,
+      "mode": "add",
+      "depth_slew_ms": 2000
+    },
+    "m_bass_cut": {
+      "source": "bass_cut_lfo",
+      "dest": "instruments.bass.params.cutoff_hz",
+      "kind": "mod",
+      "depth_oct": 0.797,
+      "mode": "add",
+      "depth_slew_ms": 2000
+    },
+    "m_droneB_cut": {
+      "source": "droneB_cut_lfo",
+      "dest": "instruments.drone_lvl.params.cutoff_hz",
+      "kind": "mod",
+      "depth_oct": 0.997,
+      "mode": "add",
+      "depth_slew_ms": 1500
+    },
+    "m_swell": {
+      "source": "swell",
+      "dest": "instruments.fmlead.params.cutoff_hz",
+      "kind": "mod",
+      "depth_oct": 1.993,
+      "mode": "add"
+    }
+  },
+  "buses": {
+    "rv": {
+      "return_gain_db": -1.72,
+      "effects": {
+        "verb": {
+          "type": "reverb",
+          "params": {
+            "room": 0.92,
+            "damping": 0.18,
+            "shimmer": 0.4,
+            "width": 0.85,
+            "predelay_ms": 30
+          }
+        }
+      }
+    }
+  }
+}

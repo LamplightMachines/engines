@@ -1,0 +1,10 @@
+[workspace]
+# Every crate under crates/: the open-set CI job deletes the closed ones (.github/closed-paths.txt) and builds the rest.
+members = ["crates/*"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+# The open crates (LICENSE); the closed ones set their own (LICENSING.md).
+license = "GPL-3.0-or-later"
+publish = false

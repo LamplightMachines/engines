@@ -1,0 +1,31 @@
+name: Feature
+description: A new capability, or a change to how something works
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Say what you want and why; a sentence or two is enough. A change that touches the loop-doc
+        contract, determinism or the architecture also needs a decision record (`doc/decisions/`), so
+        it's worth agreeing on the shape here before any code.
+  - type: textarea
+    id: what
+    attributes:
+      label: What you want
+      placeholder: e.g. a delay effect on send buses, tempo-synced
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why, and what it's for
+      description: The piece, track or workflow that needs it.
+  - type: textarea
+    id: sound
+    attributes:
+      label: What it should sound like
+      description: For audible changes. This becomes the listening check before merge.
+  - type: textarea
+    id: out
+    attributes:
+      label: Out of scope
+      description: Optional. Anything this should not touch.

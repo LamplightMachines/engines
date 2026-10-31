@@ -1,0 +1,30 @@
+// A quiet bass line: one low sine-ish voice on the root two octaves down, under the pad. The
+// `bass` role: under the Orrery it follows each chord's root; in a plain render it plays the
+// written line (engines-midi lays a MIDI file's lowest line in here, ADR 0053).
+{
+  part: { summary: "bass line — a soft low voice on the root, the Orrery's bass role, its note route and send" },
+  instruments: {
+    // A soft triangle under a low filter, slow to speak and slow to let go; nearly dry.
+    $id: {
+      enabled: true, pitched: true,
+      note_engine: { polyphony: 1, glide_ms: 120 },
+      params: { wave: "triangle", level_db: -13.98, cutoff_hz: 252.98, resonance: 0.05,
+                attack_s: 1.2, decay_s: 0.9, sustain: 0.9, release_s: 2.8 },
+      sends_db: { $bus: -20 },
+    },
+  },
+  modulators: {
+    // One voice id (`b`, the Orrery's bass id), so a new note glides from the last.
+    $id_seq: {
+      type: "step_seq", output: "note", sync: "loop", length: 16, orrery_role: "bass",
+      steps: [ { step: 0, voicing: { b: { offset: "$deg(1, -2)" } } } ],
+    },
+  },
+  matrix: {
+    // The bass's note route.
+    m_$id: { source: "$id_seq", dest: "instruments.$id.notes", kind: "note", voices: 1, priority: 1 },
+  },
+  safe_bounds: {
+    "instruments.$id.params.level_db": { min: -13.98, max: -13.98 },
+  },
+}

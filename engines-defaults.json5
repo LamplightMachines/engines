@@ -1,0 +1,36 @@
+// ─────────────────────────────────────────────────────────────────────────────
+//  engines-defaults.json5 — the control settings every NEW piece starts from (ADR 0033).
+//
+//  /engines-new starts every piece from its skeleton (skills/engines-new/reference/skeleton.json5),
+//  which carries these top-level keys (a test keeps the two the same); after that the piece owns them (no live layering — editing this file never changes an
+//  existing piece). Override anything per piece by editing the piece's own doc. Same keys and
+//  meaning as the loop doc (doc/loop_contract_v0.9.json5, "CONTROL SETTINGS" + "DRIFT CAPS").
+//
+//  Only these keys belong here: optimize, movement, constraints, max_change, max_drift (+ x_*).
+//  Pinned by `check::tests::the_root_defaults_merge_into_a_clean_doc`.
+// ─────────────────────────────────────────────────────────────────────────────
+{
+  // The timbre axis: "drift" = a bounded reflecting walk around the authored values (ADR 0032),
+  // so hours of music keep breathing; "hold" freezes them (free LFOs / sequences still move).
+  optimize: "drift",
+
+  // Drift caps, normalized 0..1: one loop moves a param at most `max_change`; over the whole
+  // session it stays within ±`max_drift` of its authored value (and inside its safe range).
+  max_change: 0.05,
+  max_drift: 0.15,
+
+  // The Orrery (generative harmony). Bind voices with `orrery_role` on the note modulators
+  // (chord / bass / arp / oneshot / context); a doc with no roles leaves the Orrery idle.
+  movement: {
+    orrery: true,
+    phrase_loops: 2,        // a chord change at most every 2 loops
+    tension_target: 0.25,   // 0 = stay on the tonic … 1 = roam to borrowed chords
+    tension_max: 0.6,
+    home: "global",
+    arrange: { return_hazard_scale: 1.0 },  // >1 returns home sooner, <1 wanders longer
+  },
+
+  // Tier-3 bands, JSONPath → { min, max } in NATIVE units: drift reflects off the edges;
+  // min == max freezes a param (e.g. a level you've balanced by ear). None by default.
+  constraints: {},
+}

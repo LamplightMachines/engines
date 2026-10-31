@@ -1,0 +1,31 @@
+{
+    "schema_version": "0.9",
+    "loop_id": 7,
+    "transport": { "bpm": 120, "master_steps": 8, "step_unit": "beat" },
+    "harmony": { "root": "A", "mode": "major" },
+    "global": { "master_gain_db": 0, "stereo_width": 0.5 },
+    "instruments": {
+        "mono": {
+            "enabled": true,
+            "pitched": true,
+            "note_engine": { "polyphony": 1, "glide_ms": 0 },
+            "params": { "wave": "saw_soft", "level_db": -6.02, "cutoff_hz": 1267.9, "drive_db": 0 },
+            "sends_db": { "rv": 0 }
+        }
+    },
+    "modulators": {
+        "note_seq": {
+            "type": "step_seq", "output": "note", "sync": "loop", "length": 8,
+            "steps": [ { "step": 0, "voicing": { "v1": { "offset": 0 } } } ]
+        },
+        "amp_lfo": {
+            "type": "lfo", "output": "control", "wave": "sine",
+            "sync": "free", "rate_hz": 0.25, "polarity": "bipolar"
+        }
+    },
+    "matrix": {
+        "m_note": { "source": "note_seq", "dest": "instruments.mono.notes", "kind": "note", "voices": 1, "priority": 1 },
+        "m_amp":  { "source": "amp_lfo", "dest": "instruments.mono.params.level_db", "kind": "mod", "depth_db": 5.58, "mode": "add" }
+    },
+    "buses": { "rv": { "return_gain_db": -Infinity, "effects": { "verb": { "type": "reverb", "params": { "room": 0.5, "damping": 0.5, "shimmer": 0, "width": 0.5, "predelay_ms": 0 } } } } }
+}

@@ -1,0 +1,138 @@
+{
+  "schema_version": "0.9",
+  "loop_id": 2047,
+  "meta": {
+    "created_by": "binaural-adr0047",
+    "note": "binaural bass drone: a held A2 pair beating at 4 Hz (L 108 | R 112, octave pedal too), its spread breathing on a slow LFO, dry and hard L/R outside a narrowed master width; a subtractive pad beside it is widened and sent to the reverb"
+  },
+  "transport": {
+    "bpm": 60,
+    "master_steps": 16,
+    "step_unit": "beat",
+    "swing": 0.0
+  },
+  "harmony": {
+    "root": "A",
+    "mode": "aeolian"
+  },
+  "global": {
+    "master_gain_db": -4.44,
+    "stereo_width": 0.3
+  },
+  "instruments": {
+    "bin": {
+      "type": "binaural",
+      "enabled": true,
+      "pitched": true,
+      "note_engine": {
+        "polyphony": 1,
+        "glide_ms": 0
+      },
+      "params": {
+        "wave": "sine",
+        "spread_hz": 4.0,
+        "cutoff_hz": 400.95,
+        "resonance": 0.0,
+        "attack_s": 0.3,
+        "decay_s": 0.6,
+        "sustain": 1.0,
+        "release_s": 2,
+        "shift_st": 12,
+        "shift_mix": 0.2,
+        "level_db": -9.12
+      }
+    },
+    "pad": {
+      "enabled": true,
+      "pitched": true,
+      "note_engine": {
+        "polyphony": 3,
+        "glide_ms": 0
+      },
+      "params": {
+        "wave": "saw_soft",
+        "cutoff_hz": 504.77,
+        "resonance": 0.1,
+        "attack_s": 1.2,
+        "decay_s": 0.9,
+        "sustain": 0.8,
+        "release_s": 2.4,
+        "voices_detune_cents": 10,
+        "level_db": -14.89
+      },
+      "sends_db": {
+        "rv": -10.46
+      }
+    }
+  },
+  "modulators": {
+    "bin_note": {
+      "type": "step_seq",
+      "output": "note",
+      "sync": "loop",
+      "length": 16,
+      "orrery_role": "context",
+      "orrery_disable": true,
+      "steps": [
+        { "step": 0, "voicing": { "d": { "offset": -24 } } }
+      ]
+    },
+    "pad_chord": {
+      "type": "step_seq",
+      "output": "note",
+      "sync": "loop",
+      "length": 16,
+      "steps": [
+        { "step": 0, "voicing": { "a": { "offset": 0 }, "b": { "offset": 3 }, "c": { "offset": 7 } } }
+      ]
+    },
+    "beat_lfo": {
+      "type": "lfo",
+      "output": "control",
+      "wave": "sine",
+      "sync": "free",
+      "rate_hz": 0.1,
+      "polarity": "bipolar"
+    }
+  },
+  "matrix": {
+    "m_bin": {
+      "source": "bin_note",
+      "dest": "instruments.bin.notes",
+      "kind": "note",
+      "voices": 1,
+      "priority": 1
+    },
+    "m_pad": {
+      "source": "pad_chord",
+      "dest": "instruments.pad.notes",
+      "kind": "note",
+      "voices": 3,
+      "priority": 1
+    },
+    "m_beat": {
+      "source": "beat_lfo",
+      "dest": "instruments.bin.params.spread_hz",
+      "kind": "mod",
+      "depth_hz": 2,
+      "mode": "add"
+    }
+  },
+  "buses": {
+    "rv": {
+      "return_gain_db": -7.96,
+      "effects": {
+        "verb": {
+          "type": "reverb",
+          "params": {
+            "room": 0.7,
+            "damping": 0.4,
+            "shimmer": 0.0,
+            "width": 0.8,
+            "predelay_ms": 12.0
+          }
+        }
+      }
+    }
+  }
+}

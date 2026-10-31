@@ -1,0 +1,14 @@
+src/**
+test/**
+test-e2e/**
+dev/**
+out/test/**
+out/test-e2e/**
+out/dev/**
+dev/**
+**/*.map
+**/*.ts
+tsconfig.json
+.vscode-test/**
+*.vsix
+.gitignore

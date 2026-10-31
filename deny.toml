@@ -1,0 +1,45 @@
+# The licence gate (LICENSING.md): `make audit` runs `cargo deny check licenses`.
+#
+# One rule for every third-party crate in the workspace: a permissive or weak-copyleft licence, never
+# GPL, AGPL or LGPL-only. (An OR expression passes when one of its choices is allowed, so
+# "MIT OR Apache-2.0 OR LGPL-2.1-or-later" is fine.) The open crates must take GPL-3.0-compatible
+# licences, and every licence below is. GPL, AGPL and LGPL-only are out too, because the copyright
+# holder's closed products link these crates (LICENSING.md): a GPL crate inside `engines_core` would ship
+# there too. An open-only crate that ever needs a GPL dependency gets an exception scoped to that
+# dependency, with the reason.
+#
+# The project's own crates are exempt by name, not by licence: they're GPL-3.0-or-later, dual-licensed by
+# the copyright holder (LICENSING.md).
+
+[graph]
+# Every optional dependency too: the closed crates turn features on.
+all-features = true
+
+[licenses]
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Zlib",
+  "0BSD",
+  "Unlicense",
+  "CC0-1.0",
+  "BSL-1.0",
+  "Unicode-3.0",
+  # File-level copyleft: a closed build may link it, and changes to its own files stay open.
+  "MPL-2.0",
+]
+confidence-threshold = 0.93
+unused-allowed-license = "allow"
+exceptions = [
+  { name = "engines_core", allow = ["GPL-3.0-or-later"] },
+  { name = "engines_live", allow = ["GPL-3.0-or-later"] },
+  { name = "engines_authoring", allow = ["GPL-3.0-or-later"] },
+  { name = "engines_tui", allow = ["GPL-3.0-or-later"] },
+]
+
+[licenses.private]
+# Unpublished crates are checked like any other: the exemption is by name, above.
+ignore = false

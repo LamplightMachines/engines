@@ -1,0 +1,61 @@
+// ───────────────────────────────────────────────────────────────────────────
+// Engines objectives / control doc  (objectives_v0.1, JSON5)
+//
+// This is the RUNTIME CONTROL PLANE: *how* the engine drives the music (the loop
+// doc is *what* it plays). It is watched live — edit + save and the change applies
+// at the next loop boundary (re-based, never jumped). The TUI also writes this file
+// when you use its hotkeys (o/m/e/c/v); key `0` opens it.
+//
+// JSON5: // and /* */ comments and trailing commas are allowed. Comment a field out
+// to fall back to its default. Schema: contracts/objectives_v0.1.schema.json.
+//
+// NOTE: the `__UPPER__` tokens below are placeholders the engine fills with the live
+// values when it renders this template; in a saved file you'll see real values.
+// ───────────────────────────────────────────────────────────────────────────
+{
+  schema_version: "objectives_v0.1",
+
+  // revision: bumped on every applied edit (recorded in telemetry and each loop record).
+  // The TUI increments it on each write; hand-edits don't need to touch it.
+  revision: __REVISION__,
+
+  // optimize — the TIMBRE axis: how params move each loop (CE-R8.1).
+  //   "hold"      — freeze the authored values (free LFOs/seqs still breathe).
+  //   "drift"     — bounded random walk with directional momentum (organic variation). [default]
+  //   "live_edit" — no drift; the loop doc is edited live (an editor / file watcher swaps it in).
+  optimize: __OPTIMIZE__,
+
+  // movement — the generative-HARMONY (Orrery) axis. One object; its sub-fields:
+  //   orrery: true            — evolve chords/bass/arps/one-hits (chords orbit the tonic,
+  //                             gravity resolves borrowed chords home). false = static.
+  //   bind: { chord, bass, arp, oneshot:[...] }
+  //                           — which note modulators Orrery drives, by id. Prefer setting
+  //                             `orrery_role` per modulator in the LOOP doc instead.
+  //   phrase_loops: 4         — loops between chord changes.
+  //   tension_target: 0.32    — 0..1 orbital-tension anchor (how far chords roam).
+  //   tension_max: 0.70       — 0..1 hard ceiling; a breach forces a return home.
+  //   voice_changes_per_loop: { min: 0.5, max: 3.0 }   — sparseness band (moving average).
+  //   home: "global" | "per_modulator"                 — return-home scope.
+  //   arrange: { arp_density: { min: 0.12, max: 0.70 }, return_hazard_scale: 1.0 }
+  //                           — optional Arranger tuning; omit for built-in defaults.
+  // example: movement: { orrery: true, phrase_loops: 4, tension_target: 0.3, home: "per_modulator" }
+  movement: __MOVEMENT__,
+
+  // constraints — Tier-3 attractor bands (NATIVE units), JSONPath → { min, max }. If a param sits
+  // outside its band the controller drives it back (priority over drift) until in range.
+  // example: constraints: { "global.master_gain_db": { min: -6, max: 0 } }   (dB for gains, Hz, s… as the doc)
+  constraints: __CONSTRAINTS__,
+
+  // overrides — live loop-doc overlay: JSONPath → value (number/bool/string), applied once on change
+  // at the next loop boundary. To PIN a value, use a constraints band with min == max instead.
+  // example: overrides: { "instruments.pad_dual.params.shift_st": -12 }
+  overrides: __OVERRIDES__,
+
+  // guardrails — max_change_per_loop bounds every drift step (a fraction of the param's range);
+  // ceilings/floors bound params in their unit (dB for gains, -Infinity for silence).
+  //   { max_change_per_loop: 0.05, ceilings: { "instruments.pad.params.cutoff_hz": 2000 },
+  //     floors: { "instruments.pad.params.level_db": -24 } }
+  guardrails: __GUARDRAILS__,
+
+  // meta_notes: optional free-text. example: meta_notes: "evening focus session",
+}

@@ -1,0 +1,26 @@
+// A shimmer-reverb send bus — a long bright room whose octave-up shimmer swells and fades on a slow
+// LFO — fed from an existing instrument (more sends are a key away: `sends_db: { $id: -7.96 }`).
+{
+  part: { summary: "shimmer bus — a shimmer reverb return, a slow swell on its shimmer, and a send into it", target: "any" },
+  buses: {
+    // `return_gain_db` is the wet level (a doc without a bus plays dry).
+    $id: {
+      return_gain_db: -9.12,
+      effects: { verb: { type: "reverb", params: { room: 0.85, damping: 0.35, shimmer: 0.3, width: 0.85, predelay_ms: 24 } } },
+    },
+  },
+  modulators: {
+    // ~43 s swell of the octave-up shimmer (unipolar: it only ever adds).
+    $id_swell: { type: "lfo", output: "control", wave: "sine", sync: "free", rate_hz: 0.023, polarity: "unipolar" },
+  },
+  matrix: {
+    // The swell on the shimmer amount.
+    m_$id_swell: { source: "$id_swell", dest: "buses.$id.effects.verb.params.shimmer", kind: "mod", depth: 0.25, mode: "add", depth_slew_ms: 2000 },
+  },
+  patch: {
+    "instruments.$target.sends_db.$id": -7.96,
+  },
+  safe_bounds: {
+    "buses.$id.return_gain_db": { min: -9.12, max: -9.12 },
+  },
+}

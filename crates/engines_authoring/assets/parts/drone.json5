@@ -1,0 +1,30 @@
+// The floor: one held root two octaves down, a soft saw under a low filter — it growls a little
+// rather than hums. A `context` voice: the Orrery reads it (its chords stay consonant with it)
+// but never moves it.
+{
+  part: { summary: "root drone — a low held saw two octaves under the root, its note route and send" },
+  instruments: {
+    // The floor: a soft saw under a low filter (≈ 318 Hz), nearly dry so the low end stays tight.
+    $id: {
+      enabled: true, pitched: true,
+      note_engine: { polyphony: 1, glide_ms: 0 },
+      params: { wave: "saw_soft", level_db: -10.46, cutoff_hz: 318.49, resonance: 0.05,
+                attack_s: 1.5, decay_s: 0.6, sustain: 1.0, release_s: 3.2 },
+      sends_db: { $bus: -21.94 },
+    },
+  },
+  modulators: {
+    // One held note: the root two octaves under octave 4. `context`: the Orrery hears it, never moves it.
+    $id_note: {
+      type: "step_seq", output: "note", sync: "loop", length: 16, orrery_role: "context", orrery_disable: true,
+      steps: [ { step: 0, voicing: { d: { offset: "$deg(1, -2)" } } } ],
+    },
+  },
+  matrix: {
+    // The drone's note route.
+    m_$id: { source: "$id_note", dest: "instruments.$id.notes", kind: "note", voices: 1, priority: 1 },
+  },
+  safe_bounds: {
+    "instruments.$id.params.level_db": { min: -10.46, max: -10.46 },
+  },
+}

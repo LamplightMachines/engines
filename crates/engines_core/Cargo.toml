@@ -1,0 +1,97 @@
+[package]
+name = "engines_core"
+version = "0.9.0"
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Engines core (Rust, I/O-free): synthesis + loop sequencer + modulators + matrix + songs + drift/Orrery controller for long-form generative tracks (ADR 0031)."
+
+[lib]
+# `lib` for Rust tests/bins; `staticlib`/`cdylib` expose the C ABI (CE-R3.6) the Swift
+# shell links. The C header is generated from src/ffi.rs by build.rs (cbindgen).
+crate-type = ["lib", "staticlib", "cdylib"]
+
+[features]
+# The dev bins (engines-render/song/play) parse their CLI with the clap crate. On by
+# default so a plain `cargo build --release` produces the bins (the Makefile and the
+# Python lab's subprocess calls rely on that). The LEAN core build (iOS) is
+# `cargo build -p engines_core --no-default-features` — no clap in that graph; the lib
+# itself never references it.
+# NB: clap here = the CLI argument-parser CRATE, NOT the CLAP audio-text model (the learner ADR 0031 removed).
+default = ["cli", "flac"]
+# `realfft` is engines-song's render checks (`verify` / `seams`): desktop-only measurement in
+# the bin, never in the lean core build.
+cli = ["dep:clap", "dep:libc", "dep:realfft", "pieces", "stems"]
+# The `pieces/<slug>/` project layout (ADR 0034): paths, `.live/history` snapshots, render naming.
+# Desktop file I/O like `flac` — never in the lean core build.
+pieces = ["dep:libc"]
+# Loudness-normalized stem export (ADR 0030; `engines_core::stems`, shared with engines-live's previews, ADR
+# 0040). Desktop file I/O like `pieces`.
+stems = ["pieces"]
+# Streaming FLAC output for `engines-song` (`--out x.flac`) via the pure-Rust `flacenc` encoder.
+# Bin-side, like the dev bins' `cli`: on by default, absent from the lean core build. Optional for
+# engines-song too — a `--features cli` build renders WAV only (stems then default to WAV).
+flac = ["dep:flacenc"]
+# Desktop live audio via cpal (the `engines-play` bin). A dev-convenience "hear it live"
+# path that builds with CLT only (no Xcode); the Swift shell remains the iOS-aligned one.
+# It no longer implies `midi`: `engines-play` and the TUI ask for it themselves, and the
+# free `engines-live` links no MIDI library at all.
+playback = ["dep:cpal"]
+# Desktop MIDI-out via midir (ADR 0026): a virtual CoreMIDI source + the playback-clocked
+# scheduler (`midi_out.rs`) used by `engines-play --midi` and the TUI. Like `playback`, this is
+# bin/shell-side I/O gated off the default build — the core lib stays I/O-free (CE-R1.2).
+midi = ["dep:midir"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# JSON5 (JSON-with-comments + trailing commas) for loop docs + objectives docs, so input files can
+# carry inline help/examples. JSON5 is a strict superset of JSON, so existing `.json` files still
+# parse. Pure-Rust + serde-based (iOS-portable); parsing doesn't touch audio math, so it's not pinned
+# for bit-reproducibility the way fundsp is (ADR 0023).
+json5 = "1"
+rtrb = "0.3"            # lock-free SPSC ring buffers for audio<->worker handoff (CE-R3.3)
+# Effects/bus framework: fundsp's graph composition is permitted *inside* the effects
+# layer (ADR amends `dsp-fundsp-components-only`); per-voice synthesis DSP stays hand-rolled.
+# Pinned exactly so coefficient math stays bit-reproducible (CE-R7.3).
+fundsp = "=0.23.0"
+# Desktop live audio output (feature `playback`, the `engines-play` bin).
+cpal = { version = "0.15", optional = true }
+# Desktop MIDI output (feature `midi`, ADR 0026): virtual port + sends, CoreMIDI-backed on macOS.
+midir = { version = "0.10", optional = true }
+# CLI parsing for the dev bins (feature `cli`, on by default) — the clap CRATE, not the
+# CLAP audio model. Never a dependency of the core lib itself.
+clap = { version = "4", optional = true, features = ["derive"] }
+# `statvfs` for engines-song's stem-export free-disk preflight (feature `cli`; bins only).
+libc = { version = "0.2", optional = true }
+# Pure-Rust FLAC encoder (feature `flac`) — frame-at-a-time, so a 6 h render streams in flat
+# memory. No `par` (we encode one frame per call) / `serde` / `log`.
+flacenc = { version = "0.5", optional = true, default-features = false }
+# Spectra for engines-song's render checks (feature `cli`; bins only).
+realfft = { version = "3", optional = true }
+
+[dev-dependencies]
+# Independent FLAC decoder + MD5 to prove the encoder's output (flac.rs tests).
+claxon = "0.4"
+md-5 = "0.10"
+# Spectrum checks in the effects tests.
+realfft = "3"
+
+[[bin]]
+name = "engines-play"
+required-features = ["playback", "midi", "cli"]
+
+[[bin]]
+name = "engines-render"
+required-features = ["cli"]
+
+[[bin]]
+name = "engines-song"
+path = "src/bin/engines-song/main.rs"
+# `flac` is optional: without it engines-song still renders WAV (and refuses a FLAC request).
+required-features = ["cli"]
+
+[build-dependencies]
+# Generates include/engines_core.h from the C ABI in src/ffi.rs (CE-R3.6). Non-fatal:
+# build.rs only warns if generation fails so the committed header is the source of truth.
+cbindgen = "0.27"

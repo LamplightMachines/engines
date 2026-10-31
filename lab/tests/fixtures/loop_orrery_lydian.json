@@ -1,0 +1,313 @@
+{
+  "schema_version": "0.9",
+  "loop_id": 2000,
+  "meta": {
+    "created_by": "orrery-seed",
+    "note": "F lydian \u2014 dreamy, floating (#4); Orrery overwrites chords/bass/arp live"
+  },
+  "transport": {
+    "bpm": 52,
+    "master_steps": 16,
+    "step_unit": "beat",
+    "swing": 0.0,
+    "timing_jitter_ms": 5
+  },
+  "harmony": {
+    "root": "F",
+    "mode": "lydian"
+  },
+  "global": {
+    "master_gain_db": -10.46,
+    "stereo_width": 0.7
+  },
+  "safe_bounds": {
+    "global.master_gain_db": {
+      "min": -12.4,
+      "max": -10.46
+    }
+  },
+  "instruments": {
+    "poly": {
+      "enabled": true,
+      "pitched": true,
+      "note_engine": {
+        "polyphony": 6,
+        "glide_ms": 380
+      },
+      "params": {
+        "wave": "saw_soft",
+        "voices_detune_cents": 6,
+        "level_db": -6.74,
+        "cutoff_hz": 800
+      },
+      "sends_db": {
+        "rv": 0
+      }
+    },
+    "mono": {
+      "enabled": true,
+      "pitched": true,
+      "note_engine": {
+        "polyphony": 1,
+        "glide_ms": 600
+      },
+      "params": {
+        "wave": "triangle",
+        "drive_db": 5.58,
+        "level_db": -2.16,
+        "cutoff_hz": 220.34
+      },
+      "sends_db": {
+        "rv": 0
+      }
+    },
+    "pluck": {
+      "enabled": true,
+      "pitched": true,
+      "note_engine": {
+        "polyphony": 3,
+        "glide_ms": 0
+      },
+      "params": {
+        "wave": "sine",
+        "attack_s": 0,
+        "decay_s": 1.86,
+        "sustain": 0.0,
+        "release_s": 0.88,
+        "level_db": -12.4,
+        "cutoff_hz": 3184.9
+      },
+      "sends_db": {
+        "rv": 0
+      }
+    },
+    "event": {
+      "enabled": true,
+      "pitched": true,
+      "note_engine": {
+        "polyphony": 3,
+        "glide_ms": 0
+      },
+      "params": {
+        "wave": "sine_bell",
+        "decay_s": 3.2,
+        "level_db": -11.7
+      },
+      "sends_db": {
+        "rv": 0
+      }
+    },
+    "rhythmic": {
+      "enabled": true,
+      "pitched": false,
+      "note_engine": {
+        "polyphony": 2
+      },
+      "params": {
+        "source": "filtered_noise",
+        "band_lo_hz": 904.59,
+        "band_hi_hz": 2501.4,
+        "level_db": -15.39,
+        "decay_s": 0.3,
+        "sustain": 0.0,
+        "release_s": 0.24
+      },
+      "sends_db": {
+        "rv": 0
+      }
+    }
+  },
+  "modulators": {
+    "lfo_breath": {
+      "type": "lfo",
+      "output": "control",
+      "wave": "sine",
+      "sync": "free",
+      "rate_hz": 0.033,
+      "polarity": "bipolar"
+    },
+    "chords": {
+      "type": "step_seq",
+      "output": "note",
+      "sync": "loop",
+      "length": 16,
+      "steps": [
+        {
+          "step": 0,
+          "voicing": {
+            "v1": {
+              "offset": 0
+            },
+            "v2": {
+              "offset": 7
+            },
+            "v3": {
+              "offset": 11,
+              "cents_offset": -3
+            },
+            "v4": {
+              "offset": 16,
+              "cents_offset": 5
+            }
+          }
+        }
+      ]
+    },
+    "bass_line": {
+      "type": "step_seq",
+      "output": "note",
+      "sync": "loop",
+      "length": 16,
+      "steps": [
+        {
+          "step": 0,
+          "voicing": {
+            "b": {
+              "offset": -17
+            }
+          }
+        }
+      ]
+    },
+    "arp_shimmer": {
+      "type": "step_seq",
+      "output": "note",
+      "sync": "loop",
+      "length": 16,
+      "step_duration": "1/16",
+      "humanize_ms": 5,
+      "generator": {
+        "kind": "euclid",
+        "pulses": 5,
+        "rotation": 2
+      },
+      "pitch_walk": {
+        "pool": [
+          12,
+          16,
+          19,
+          23
+        ],
+        "order": "up"
+      }
+    },
+    "spark_events": {
+      "type": "step_seq",
+      "output": "note",
+      "sync": "free",
+      "length": 19,
+      "step_duration": "1/16",
+      "steps": [
+        {
+          "step": 4,
+          "voicing": {
+            "e": {
+              "offset": 19,
+              "prob": 0.07
+            }
+          }
+        },
+        {
+          "step": 10,
+          "voicing": {
+            "e": {
+              "offset": 23,
+              "prob": 0.05
+            }
+          }
+        },
+        {
+          "step": 16,
+          "voicing": {
+            "e": {
+              "offset": 28,
+              "prob": 0.04
+            }
+          }
+        }
+      ]
+    },
+    "rhy_noise": {
+      "type": "step_seq",
+      "output": "note",
+      "sync": "free",
+      "length": 29,
+      "step_duration": "1/16",
+      "generator": {
+        "kind": "euclid",
+        "pulses": 7,
+        "rotation": 3
+      }
+    }
+  },
+  "matrix": {
+    "m_breath_c": {
+      "source": "lfo_breath",
+      "dest": "instruments.poly.params.cutoff_hz",
+      "kind": "mod",
+      "depth_oct": 0.465,
+      "mode": "add",
+      "depth_slew_ms": 1800
+    },
+    "m_breath_w": {
+      "source": "lfo_breath",
+      "dest": "global.stereo_width",
+      "kind": "mod",
+      "depth": 0.12,
+      "mode": "add",
+      "depth_slew_ms": 1800
+    },
+    "m_chords": {
+      "source": "chords",
+      "dest": "instruments.poly.notes",
+      "kind": "note",
+      "voices": 4,
+      "priority": 1
+    },
+    "m_bass": {
+      "source": "bass_line",
+      "dest": "instruments.mono.notes",
+      "kind": "note",
+      "voices": 1,
+      "priority": 1
+    },
+    "m_arp": {
+      "source": "arp_shimmer",
+      "dest": "instruments.pluck.notes",
+      "kind": "note",
+      "voices": 3,
+      "priority": 2
+    },
+    "m_spark": {
+      "source": "spark_events",
+      "dest": "instruments.event.notes",
+      "kind": "note",
+      "voices": 2,
+      "priority": 3
+    },
+    "m_rhy": {
+      "source": "rhy_noise",
+      "dest": "instruments.rhythmic.notes",
+      "kind": "note",
+      "voices": 2,
+      "priority": 3
+    }
+  },
+  "buses": {
+    "rv": {
+      "return_gain_db": -8.4,
+      "effects": {
+        "verb": {
+          "type": "reverb",
+          "params": {
+            "room": 0.74,
+            "damping": 0.3,
+            "shimmer": 0.38,
+            "width": 0.78,
+            "predelay_ms": 20.0
+          }
+        }
+      }
+    }
+  }
+}

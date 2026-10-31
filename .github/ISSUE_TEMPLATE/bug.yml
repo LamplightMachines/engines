@@ -1,0 +1,56 @@
+name: Bug
+description: Something doesn't work, sounds wrong, or breaks a render
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Renders are deterministic: the same doc, seed and commit give the same audio. With those three,
+        a bug replays exactly, so please include them.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - Engine or render (engines-render, engines-song, stems)
+        - Live player (engines-live)
+        - VS Code extension
+        - Authoring (engines-check, engines-lsp, engines-part)
+        - A skill (engines-new, engines-edit, engines-song) or the Claude Code hook
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. make live PIECE=…
+        2. …
+  - type: textarea
+    id: doc
+    attributes:
+      label: The loop doc
+      description: The snapshot that shows it. engines-live keeps every revision in pieces/<slug>/.live/history/; attach the file or paste it.
+  - type: input
+    id: replay
+    attributes:
+      label: Revision, seed and commit
+      placeholder: rev 14, seed 7, commit d1ac84a
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output or logs
+      render: text

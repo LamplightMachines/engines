@@ -1,0 +1,320 @@
+{
+  "name": "engines",
+  "displayName": "Engines",
+  "description": "Compose generative loop docs live: the engines-lsp language server and the engines-live player in VS Code (ADR 0038).",
+  "version": "0.1.0",
+  "publisher": "LamplightMachines",
+  "private": true,
+  "license": "GPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LamplightMachines/engines"
+  },
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "main": "./out/src/extension.js",
+  "activationEvents": [
+    "workspaceContains:pieces/*/*.json5"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "engines-loop",
+        "aliases": [
+          "Engines Loop Doc",
+          "engines-loop"
+        ],
+        "filenamePatterns": [
+          "**/pieces/**/*.json5"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "engines-loop",
+        "scopeName": "source.json5.engines",
+        "path": "./syntaxes/json5.tmLanguage.json"
+      }
+    ],
+    "configurationDefaults": {
+      "[engines-loop]": {
+        "editor.quickSuggestions": {
+          "other": "on",
+          "comments": "off",
+          "strings": "on"
+        }
+      }
+    },
+    "configuration": {
+      "title": "Engines",
+      "properties": {
+        "engines.server.path": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Path to `engines-lsp`. Empty: `target/release/engines-lsp` in the workspace (`make lsp` builds it)."
+        },
+        "engines.live.path": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Path to `engines-live`. Empty: `target/release/engines-live` in the workspace (`make vscode` builds it)."
+        },
+        "engines.live.args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "Extra `engines-live` arguments, e.g. `[\"--output-device\", \"MacBook Pro Speakers\"]` or `[\"--ring-ms\", \"120\"]`."
+        },
+        "engines.live.outputDevice": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Output device for `engines-live` (`--output-device`), e.g. a multichannel loopback such as `BlackHole 64ch`, or your headphones. Empty: the system output. **Engines: Choose the Output Device…** (or the device line in the live panel) picks it from a list and switches a playing player in place."
+        },
+        "engines.live.routeSources": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Route every audio source to its own stereo pair of `engines.live.outputDevice` (`--route-sources`, ADR 0044), as the piece's routing map assigns them. Needs a multichannel device such as `BlackHole 64ch`."
+        },
+        "engines.live.headless": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Run `engines-live --headless`: no audio device (the panel still shows everything)."
+        },
+        "engines.live.applyOn": {
+          "type": "string",
+          "enum": [
+            "save",
+            "edit"
+          ],
+          "enumDescriptions": [
+            "The player hears the doc each time you save it (⌘S). Unsaved edits wait; the status bar and the panel mark them.",
+            "The player hears the editor as you type, saved or not (once the buffer has been still for `#engines.live.debounceMs#`)."
+          ],
+          "default": "save",
+          "markdownDescription": "When your edits reach the player. With `save`, `files.autoSave: afterDelay` turns every pause into a save (hands-free); it's off unless you set it."
+        },
+        "engines.live.debounceMs": {
+          "type": "number",
+          "default": 300,
+          "minimum": 0,
+          "markdownDescription": "With `#engines.live.applyOn#` set to `edit`: how long the buffer must be still before it's sent to the player (ms)."
+        },
+        "engines.live.highlightSteps": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Highlight the step each step sequence is playing."
+        },
+        "engines.inlayHints.notes": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Note names after offsets (`7` → `A4`) and the just-intonation harmonic after a tuned `cents_offset`."
+        },
+        "engines.inlayHints.units": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "What a value in its unit doesn't say: the note nearest a cutoff (`cutoff_hz: 800` → `≈G5 +35¢`), a gain's amplitude (`level_db: -6.02` → `×0.50`), a depth's swing (`depth_oct: 1` → `400Hz…1.60kHz`), a binaural pair's note and beat band."
+        },
+        "engines.inlayHints.loopLength": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "The loop length after `master_steps`."
+        },
+        "engines.inlayHints.cycles": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Each modulator's cycle, and when the whole doc realigns."
+        },
+        "engines.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Trace the JSON-RPC traffic with engines-lsp (Output → Engines)."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "engines.live.start",
+        "title": "Play This Piece",
+        "category": "Engines",
+        "icon": "$(play)"
+      },
+      {
+        "command": "engines.live.stop",
+        "title": "Stop the Player",
+        "category": "Engines",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "engines.live.restart",
+        "title": "Restart From Loop 0",
+        "category": "Engines"
+      },
+      {
+        "command": "engines.live.showPanel",
+        "title": "Show the Live Panel",
+        "category": "Engines",
+        "icon": "$(pulse)"
+      },
+      {
+        "command": "engines.live.chooseOutput",
+        "title": "Choose the Output Device…",
+        "category": "Engines",
+        "icon": "$(unmute)"
+      },
+      {
+        "command": "engines.live.toggleHold",
+        "title": "Toggle Hold ⇄ Drift",
+        "category": "Engines"
+      },
+      {
+        "command": "engines.live.preview",
+        "title": "Render a Preview (Mix or Stems)…",
+        "category": "Engines"
+      },
+      {
+        "command": "engines.live.revert",
+        "title": "Revert to a Revision…",
+        "category": "Engines"
+      },
+      {
+        "command": "engines.addPart",
+        "title": "Add a Part…",
+        "category": "Engines",
+        "icon": "$(add)"
+      },
+      {
+        "command": "engines.lsp.restart",
+        "title": "Restart the Language Server",
+        "category": "Engines"
+      },
+      {
+        "command": "engines.solo",
+        "title": "Solo an Instrument",
+        "category": "Engines"
+      },
+      {
+        "command": "engines.mute",
+        "title": "Mute an Instrument",
+        "category": "Engines"
+      },
+      {
+        "command": "engines.loopBlock",
+        "title": "Loop a Song Block",
+        "category": "Engines"
+      },
+      {
+        "command": "engines.playFrom",
+        "title": "Play the Song From a Block",
+        "category": "Engines"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "engines.live.start",
+          "when": "resourceLangId == engines-loop && !engines.live.playing",
+          "group": "navigation"
+        },
+        {
+          "command": "engines.live.stop",
+          "when": "resourceLangId == engines-loop && engines.live.playing",
+          "group": "navigation"
+        },
+        {
+          "command": "engines.live.showPanel",
+          "when": "resourceLangId == engines-loop",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "engines.solo",
+          "when": "false"
+        },
+        {
+          "command": "engines.mute",
+          "when": "false"
+        },
+        {
+          "command": "engines.loopBlock",
+          "when": "false"
+        },
+        {
+          "command": "engines.playFrom",
+          "when": "false"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "engines.addPart",
+          "when": "resourceLangId == engines-loop",
+          "group": "1_modification"
+        }
+      ]
+    },
+    "colors": [
+      {
+        "id": "engines.activeStepBackground",
+        "description": "Background of the step a step sequence is playing.",
+        "defaults": {
+          "dark": "#4f8cc933",
+          "light": "#4f8cc926",
+          "highContrast": "#4f8cc955",
+          "highContrastLight": "#4f8cc933"
+        }
+      },
+      {
+        "id": "engines.statusBar.playingForeground",
+        "description": "The Engines Live status bar item's text while a piece is playing.",
+        "defaults": {
+          "dark": "#5be08f",
+          "light": "#1b7a43",
+          "highContrast": "#5be08f",
+          "highContrastLight": "#1b7a43"
+        }
+      },
+      {
+        "id": "engines.activeStepBorder",
+        "description": "Left border of the step a step sequence is playing.",
+        "defaults": {
+          "dark": "#4f8cc9",
+          "light": "#2f6ca9",
+          "highContrast": "#6fb0f0",
+          "highContrastLight": "#2f6ca9"
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -w -p .",
+    "test": "npm run compile && node --test 'out/test/*.test.js'",
+    "test:e2e": "npm run compile && node out/test-e2e/run.js",
+    "harness": "npm run compile && node out/dev/serve.js",
+    "package": "node -e \"require('fs').rmSync('out', { recursive: true, force: true })\" && tsc -p . && vsce package -o engines.vsix"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^10.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/vscode": "~1.95.0",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^4.0.0",
+    "typescript": "~5.9.3",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2"
+  }
+}

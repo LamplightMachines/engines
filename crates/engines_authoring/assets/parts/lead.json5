@@ -1,0 +1,43 @@
+// A sung line: one soft voice in the middle register, slow to speak and gliding a little from note to
+// note, its brightness breathing slowly — a melody over the pad. It plays a phrase arm whose cells
+// take turns (`select: "cycle"`); engines-midi lays a MIDI file's top line in here (ADR 0053).
+{
+  part: { summary: "lead line — a soft sustained voice, a phrase arm taking turns, its breath, route and send" },
+  instruments: {
+    // A triangle under a mid filter, a hair of unison detune; legato (one voice, a short glide).
+    $id: {
+      enabled: true, pitched: true,
+      note_engine: { polyphony: 1, glide_ms: 70 },
+      params: { wave: "triangle", voices_detune_cents: 2, level_db: -12.04, cutoff_hz: 1007.1, resonance: 0.1,
+                attack_s: 0.75, decay_s: 0.9, sustain: 0.85, release_s: 2.8 },
+      sends_db: { $bus: -9.12 },
+    },
+  },
+  modulators: {
+    // One host step = 1/16 of the loop; each cell is a phrase, and the cells take turns.
+    $id_seq: {
+      type: "step_seq", output: "note", sync: "loop", length: 16, step_duration: "1/16",
+      phrase: { pool: ["$id_cell"], select: "cycle" },
+    },
+    // ~5 s per breath on the brightness (the engine has no pitch vibrato): free, so it drifts.
+    $id_breath: { type: "lfo", output: "control", wave: "sine", sync: "free", rate_hz: 0.2, polarity: "bipolar" },
+  },
+  sequence_pools: {
+    // A placeholder phrase (the fifth, then the third, held): `fit: "chord"` keeps it on the chord.
+    $id_cell: {
+      fit: "chord", tags: ["calm"], length: 8,
+      notes: [
+        { t: 0, offset: "$deg(5)", dur: 3.5 },
+        { t: 4, offset: "$deg(3)", dur: 3.5 },
+      ],
+    },
+  },
+  matrix: {
+    // The lead's note route (priority 2: the drones win a voice-stealing tie), and its breath.
+    m_$id: { source: "$id_seq", dest: "instruments.$id.notes", kind: "note", voices: 1, priority: 2 },
+    m_$id_breath: { source: "$id_breath", dest: "instruments.$id.params.cutoff_hz", kind: "mod", depth_oct: 0.399, mode: "add", depth_slew_ms: 1500 },
+  },
+  safe_bounds: {
+    "instruments.$id.params.level_db": { min: -12.04, max: -12.04 },
+  },
+}

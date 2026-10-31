@@ -1,0 +1,45 @@
+// A soft plucked pulse, locked to the loop: a small struck resonator bank playing a short
+// chord-fit cell on loop sixteenths — the root on the beat, a ghosted repeat, a lift to the fifth.
+{
+  part: { summary: "plucked pulse — a modal pluck, a loop-locked phrase cell, its note route and send" },
+  instruments: {
+    // The pluck: three resonator modes, each ring as long as its note (`t60_mode: "note"`), so the
+    // cell's `dur` shapes it. Quiet: it joins a gain-staged doc.
+    $id: {
+      enabled: true, pitched: true, type: "modal",
+      note_engine: { polyphony: 3, glide_ms: 0 },
+      params: { material: "resonators", num_modes: 3, t60_mode: "note", ring_ratio: 0.812,
+                brightness: 0.4, strike_pos: 0.3, stretch: 0.0, level_db: -13.98 },
+      sends_db: { $bus: -12.04 },
+    },
+  },
+  modulators: {
+    // One host step = 1/16 of the loop; the cell tiles every 4 steps (`seeded` re-picks per tile).
+    // `oneshot` role: under the Orrery the Arranger's energy decides how busy it gets.
+    $id_seq: {
+      type: "step_seq", output: "note", sync: "loop", length: 16, step_duration: "1/16",
+      orrery_role: "oneshot", humanize_ms: 3,
+      phrase: { pool: ["$id_cell"], select: "seeded" },
+    },
+  },
+  sequence_pools: {
+    // `fit: "chord"`: snapped to the doc's scale in a plain render, re-voiced to the chord under
+    // the Orrery. t / dur in host steps.
+    $id_cell: {
+      fit: "chord", tags: ["calm", "sparse"], length: 4,
+      notes: [
+        { t: 0, offset: -12, dur: 0.45 },
+        { t: 1, offset: -12, dur: 0.3, prob: 0.6 },
+        { t: 2, offset: -5, dur: 0.45 },
+        { t: 3, offset: 0, dur: 0.3, prob: 0.4 },
+      ],
+    },
+  },
+  matrix: {
+    // The pulse's note route (priority 2: the drones win a voice-stealing tie).
+    m_$id: { source: "$id_seq", dest: "instruments.$id.notes", kind: "note", voices: 3, priority: 2 },
+  },
+  safe_bounds: {
+    "instruments.$id.params.level_db": { min: -13.98, max: -13.98 },
+  },
+}

@@ -1,0 +1,43 @@
+[package]
+name = "engines_authoring"
+version = "0.9.0"
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Desktop authoring toolchain for Engines loop docs (ADR 0033, 0037, 0039): strict checking reports (engines-check), the JSON5 CST, the language server (engines-lsp), the parts library (engines-part), migration (engines-migrate) and render housekeeping (engines-clean). Wraps engines_core's public API; NOT part of the portable core."
+
+[dependencies]
+# The lean core lib (no dev-bin CLI/FLAC features) + the `pieces/<slug>/` layout helpers + the
+# stem names (`stems::assign_names`).
+engines_core = { path = "../engines_core", default-features = false, features = ["pieces", "stems"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# The engine's JSON5 parser: the CST reuses its Unicode character classes (`json5::char`) and is
+# tested value-for-value against it.
+json5 = "1"
+# CLI parsing (the clap arg-parser crate).
+clap = { version = "4", features = ["derive"] }
+# The language server (engines-lsp, ADR 0037): rust-analyzer's synchronous JSON-RPC scaffold + the LSP
+# types.
+lsp-server = "0.7"
+lsp-types = "0.97"
+
+[[bin]]
+name = "engines-check"
+path = "src/bin/engines-check.rs"
+
+[[bin]]
+name = "engines-clean"
+path = "src/bin/engines-clean.rs"
+
+[[bin]]
+name = "engines-lsp"
+path = "src/bin/engines-lsp.rs"
+
+[[bin]]
+name = "engines-part"
+path = "src/bin/engines-part.rs"
+
+[[bin]]
+name = "engines-migrate"
+path = "src/bin/engines-migrate.rs"

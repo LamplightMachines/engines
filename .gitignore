@@ -1,0 +1,54 @@
+# Build artifacts
+build/
+target/
+dist/
+.build/
+.swiftpm/
+*.o
+*.a
+*.so
+*.pyd
+*.dylib
+_skbuild/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# uv
+.uv/
+uv.lock
+
+# Dependencies
+node_modules/
+.venv/
+__pycache__/
+
+# Large/generated assets
+*.wav
+*.flac
+# The sample the reference Live set R3 references (ADR 0044) — its bytes pin Live's OriginalCrc.
+!crates/engines_als/tests/fixtures/als/tone48k.flac
+renders/
+sandbox/
+# Composition projects (ADR 0034): one self-contained folder per piece — doc, brief, .live/
+# history, renders, stems. Local only; house-style references are snapshotted into the skill.
+pieces/
+# Auto-created by the TUI when no --objectives path is passed (the live control plane scratch doc).
+engines-objectives.json
+engines-objectives.json5
+# …and the name it had before the rename to Engines.
+sme-objectives.json
+sme-objectives.json5
+# `make templates` writes these starter templates into the cwd.
+loop_doc.template.json5
+objectives.template.json5
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# engines-listen (ADR 0050): downloaded model weights stay local, never bundled; its lockfile is tracked.
+tools/engines-listen/.models/
+!tools/engines-listen/uv.lock

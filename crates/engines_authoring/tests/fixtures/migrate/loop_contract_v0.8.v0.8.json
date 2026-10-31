@@ -1,0 +1,149 @@
+{
+    "schema_version": "0.8",
+    "loop_id": 413,
+    "meta": {
+        "created_by": "controller",
+        "directive_id": 38,
+        "progress_to_target": 0.40,
+        "constraints_clamped": []
+    },
+    "transport": {
+        "bpm": 65,
+        "master_steps": 16,
+        "step_unit": "beat",
+        "swing": 0.0,
+        "timing_jitter_ms": 8
+    },
+    "harmony": {
+        "root": "D",
+        "mode": "dorian"
+    },
+    "global": {
+        "master_gain": 1.0,
+        "stereo_width": 0.5,
+        "reverb_mix": 0.25
+    },
+    "instruments": {
+        "mono": {
+            "enabled": true,
+            "pitched": true,
+            "note_engine": { "polyphony": 1, "glide_ms": 400 },
+            "params": { "wave": "triangle", "drive": 0.15, "level": 0.80, "cutoff": 0.28 }
+        },
+        "poly": {
+            "enabled": true,
+            "pitched": true,
+            "note_engine": { "polyphony": 6, "glide_ms": 250 },
+            "params": { "wave": "saw_soft", "voices_detune": 0.04, "level": 0.55, "cutoff": 0.45 }
+        },
+        "rhythmic": {
+            "enabled": true,
+            "pitched": false,
+            "note_engine": { "polyphony": 2 },
+            "params": { "source": "filtered_noise", "band_lo": 0.55, "band_hi": 0.80, "level": 0.20 }
+        },
+        "event": {
+            "enabled": true,
+            "pitched": true,
+            "note_engine": { "polyphony": 2, "glide_ms": 0 },
+            "params": { "wave": "sine_bell", "decay": 0.70, "level": 0.28 }
+        }
+    },
+    "modulators": {
+        "lfo_breath": {
+            "type": "lfo", "output": "control", "wave": "sine",
+            "sync": "free", "rate_hz": 0.05, "polarity": "bipolar"
+        },
+        "seq_swell": {
+            "type": "step_seq", "output": "control", "sync": "loop", "length": 16,
+            "entry_value": 0.44, "interp": "smooth",
+            "steps": [
+                { "step": 0, "value": 0.44 },
+                { "step": 8, "value": 0.54 },
+                { "step": 15, "value": 0.47 }
+            ]
+        },
+        "chords": {
+            "type": "step_seq", "output": "note", "sync": "loop", "length": 16,
+            "steps": [
+                { "step": 0, "voicing": {
+                    "v1": { "offset": 0 },
+                    "v2": { "offset": 7 },
+                    "v3": { "offset": 10, "cents_offset": -5 },
+                    "v4": { "offset": 14, "cents_offset": 4 }
+                } },
+                { "step": 8, "voicing": {
+                    "v1": { "offset": 0 },
+                    "v2": { "offset": 9 },
+                    "v4": { "offset": 14, "cents_offset": 4, "prob": 0.6 }
+                } },
+                { "step": 12, "voicing": {
+                    "v1": { "offset": 0 },
+                    "v2": { "offset": 9 },
+                    "v3": { "offset": 12, "cents_offset": -3 },
+                    "v4": { "release": true }
+                } }
+            ]
+        },
+        "bass_line": {
+            "type": "step_seq", "output": "note", "sync": "loop", "length": 16,
+            "steps": [
+                { "step": 0, "voicing": { "v1": { "offset": -12 } } },
+                { "step": 8, "voicing": { "v1": { "offset": -5, "prob": 0.6 } } },
+                { "step": 13, "voicing": { "v1": { "offset": -12 } } }
+            ]
+        },
+        "arp_shimmer": {
+            "type": "step_seq", "output": "note", "sync": "loop", "length": 44,
+            "step_duration": "1/44", "humanize_ms": 6,
+            "generator": { "kind": "euclid", "pulses": 17, "rotation": 0 },
+            "pitch_walk": { "pool": [12, 16, 19, 24], "order": "up" }
+        },
+        "rhy_noise": {
+            "type": "step_seq", "output": "note", "sync": "free", "length": 23,
+            "step_duration": "1/16",
+            "generator": { "kind": "euclid", "pulses": 9, "rotation": 4 }
+        },
+        "spark_events": {
+            "type": "step_seq", "output": "note", "sync": "free", "length": 17,
+            "step_duration": "1/16",
+            "steps": [
+                { "step": 2, "voicing": { "e": { "offset": 12, "prob": 0.06 } } },
+                { "step": 7, "voicing": { "e": { "offset": 7, "prob": 0.04 } } },
+                { "step": 11, "voicing": { "e": { "offset": 19, "prob": 0.05 } } },
+                { "step": 16, "voicing": { "e": { "offset": 24, "prob": 0.03 } } }
+            ]
+        },
+        "glints": {
+            "type": "step_seq", "output": "note", "sync": "free", "length": 16,
+            "step_duration": "1/16",
+            "phrase": {
+                "pool": ["lib:and_lift", "riverbed"],
+                "select": "seeded"
+            }
+        }
+    },
+    "sequence_pools": {
+        "riverbed": {
+            "fit": "chord",
+            "tags": ["calm"],
+            "length": 8,
+            "notes": [
+                { "t": 0, "offset": 12 },
+                { "t": 2, "offset": 14, "legato": true, "dur": 1.0 },
+                { "t": 4.5, "offset": 19, "dur": 0.75 },
+                { "t": 6, "offset": 17, "dur": 1.5, "prob": 0.7 }
+            ]
+        }
+    },
+    "matrix": {
+        "m_breath_w": { "source": "lfo_breath", "dest": "global.stereo_width", "kind": "mod", "depth": 0.10, "mode": "add", "depth_slew_ms": 1500 },
+        "m_breath_c": { "source": "lfo_breath", "dest": "instruments.poly.params.cutoff", "kind": "mod", "depth": 0.06, "mode": "add", "depth_slew_ms": 1500 },
+        "m_swell": { "source": "seq_swell", "dest": "instruments.poly.params.level", "kind": "mod", "depth": 0.20, "mode": "add" },
+        "m_chords": { "source": "chords", "dest": "instruments.poly.notes", "kind": "note", "voices": 4, "priority": 1 },
+        "m_arp": { "source": "arp_shimmer", "dest": "instruments.poly.notes", "kind": "note", "voices": 2, "priority": 3 },
+        "m_bass": { "source": "bass_line", "dest": "instruments.mono.notes", "kind": "note", "voices": 1, "priority": 1 },
+        "m_rhy": { "source": "rhy_noise", "dest": "instruments.rhythmic.notes", "kind": "note", "voices": 2, "priority": 2 },
+        "m_spark": { "source": "spark_events", "dest": "instruments.event.notes", "kind": "note", "voices": 2, "priority": 2 }
+    }
+}

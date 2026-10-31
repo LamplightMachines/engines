@@ -1,0 +1,13 @@
+// Slow breathing: a ~22 s sine LFO opening and closing an existing instrument's filter. Free-running
+// (not loop-locked), so it drifts against the loop — one more layer of polymeter.
+{
+  part: { summary: "breath — a slow free LFO on an instrument's cutoff", target: "cutoff_hz" },
+  modulators: {
+    // ~22 s per breath (0.045 Hz).
+    $id: { type: "lfo", output: "control", wave: "sine", sync: "free", rate_hz: 0.045, polarity: "bipolar" },
+  },
+  matrix: {
+    // ±0.66 oct on $target's cutoff_hz, eased in over 1.5 s.
+    m_$id: { source: "$id", dest: "instruments.$target.params.cutoff_hz", kind: "mod", depth_oct: 0.664, mode: "add", depth_slew_ms: 1500 },
+  },
+}

@@ -1,0 +1,189 @@
+/* Engines Live — design tokens (design/vs_extension/tokens.css, SPEC.md §3; ADR 0040). A dark
+   DAW-inspired palette; the panel keeps this palette regardless of the VS Code theme, except in
+   high-contrast themes (SPEC.md §9, at the end of this file). The identity palette is duplicated in
+   src/panel/model.ts (PALETTE), which assigns the colours. */
+:root {
+  /* Surfaces & lines */
+  --engines-ground: #141414;
+  --engines-panel: #1b1b1b;
+  --engines-section: #2a2a2a;
+  --engines-section-head: #333333;
+  --engines-bar: #262626;
+  --engines-inset: #141414;
+  --engines-inset-border: #0a0a0a;
+  --engines-well: #1c1c1c;
+  --engines-track: #121212;
+  --engines-control: #3a3a3a;
+  --engines-seg-track: #161616;
+  --engines-divider: #3c3c3c;
+  --engines-hairline: #111111;
+  --engines-hairline-open: #1a1a1a;
+  --engines-row-alt: #2e2e2e;
+  --engines-control-2: #363636;       /* quieter controls: revert buttons, source tags, a disabled Back */
+  --engines-tail: #4a4a4a;            /* the song's ring-out tail segment */
+  --engines-tick: #383838;            /* the loop timeline's step ticks */
+  --engines-tick-beat: #4a4a4a;       /* …and its beat ticks */
+
+  /* Text (min 4.5:1 — never dimmer than --engines-text-3 on --engines-section) */
+  --engines-text-strong: #f2f2f2;
+  --engines-text: #e6e6e6;
+  --engines-text-control: #d0d0d0;    /* icons and labels on controls */
+  --engines-text-soft: #c4c4c4;       /* chips, tags, section summaries */
+  --engines-text-2: #a8a8a8;
+  --engines-text-3: #939393;
+  --engines-text-on-color: #141414;
+
+  /* State */
+  --engines-accent: #ffa33a;          /* ON */
+  --engines-on-accent: #1a1a1a;
+  --engines-live: #5be08f;            /* playing */
+  --engines-live-bg: #24492f;
+  --engines-live-pill: #1d3a28;
+  --engines-live-strong: #35b06a;
+  --engines-on-live-strong: #0c1a12;
+  --engines-live-row: #28332b;
+  --engines-live-played: #234b33;
+  --engines-current-row: #2d342f;
+  --engines-solo: #69b8ff;
+  --engines-on-solo: #0d1a26;
+  --engines-activator: #f2c14e;       /* track audible */
+  --engines-on-activator: #1a1a1a;
+  --engines-muted-fg: #9a9a9a;
+  --engines-peak: #f0c25a;
+  --engines-error: #ff8f86;
+  --engines-error-bg: #4a2422;
+  --engines-warning: #e8c14a;
+
+  /* Meters: gradient anchored to the full track (−60 dB bottom → 0 dB top) */
+  --engines-meter-gradient: linear-gradient(to top,
+    #1fa34f 0%, #3fcf6e 42%, #a3dc44 64%, #f2d43c 77%, #f7962f 88%, #ff4438 97%);
+  --engines-meter-peak: #e6e6e6;
+  --engines-meter-silent-opacity: 0.45;
+
+  /* Identity palette (SPEC.md §3.5) — cycled in sequence, never chosen by hand.
+     Tracks:      --engines-id-{ i % 12 }        (i = position in `instruments`, document order)
+     Song blocks: --engines-id-{ (i + 6) % 12 }  (i = index in `song.sequence`)
+     Ordered so neighbours are ~150° apart in hue. Each is one of a DAW's 70-colour track palette, so a
+     set built from the piece can match (ADR 0044 D10); all ≥ 5:1 against --engines-text-on-color (WCAG AA). */
+  --engines-id-0: #ff94a6;   /* coral — Live 0 */
+  --engines-id-1: #00bfaf;   /* jade — Live 20 */
+  --engines-id-2: #b677c6;   /* orchid — Live 25 */
+  --engines-id-3: #7db04d;   /* lime — Live 47 */
+  --engines-id-4: #92a7ff;   /* periwinkle — Live 10 */
+  --engines-id-5: #ffa374;   /* apricot — Live 29 */
+  --engines-id-6: #88c2ba;   /* teal — Live 48 */
+  --engines-id-7: #bc7196;   /* pink — Live 54 */
+  --engines-id-8: #9bc48d;   /* sage — Live 34 */
+  --engines-id-9: #ae98e5;   /* violet — Live 39 */
+  --engines-id-10: #bfba69;  /* khaki — Live 45 */
+  --engines-id-11: #8393cc;  /* steel — Live 51 */
+  --engines-id-count: 12;
+  --engines-block-offset: 6;
+  --engines-track-master: #d0d0d0; /* Master is outside the cycle — Live 27 */
+
+  --engines-block-played: rgba(0, 0, 0, 0.28);
+  --engines-block-playhead: #ffffff;
+
+  /* Keyboard */
+  --engines-key-white-in: #d8d8d8;
+  --engines-key-white-out: #8f8f8f;
+  --engines-key-black-in: #606060;
+  --engines-key-black-out: #1d1d1d;
+  --engines-pad: #4d9fff;             /* circle */
+  --engines-bass: #a679ff;            /* diamond */
+
+  /* Type */
+  /* VS Code's own fonts (the user's call, 2026-10-10 — the design's Archivo / JetBrains Mono aren't
+     bundled; its 94% stretch was tuned for Archivo, so the UI keeps the normal width). */
+  --engines-font-ui: var(--vscode-font-family, system-ui), sans-serif;
+  --engines-font-mono: var(--vscode-editor-font-family, ui-monospace), monospace;
+  --engines-ui-stretch: 100%;
+  --engines-size-base: 12.5px;
+  --engines-size-title: 12px;
+  --engines-size-label: 11px;
+  --engines-size-tag: 10px;
+  --engines-size-name: 19px;
+  --engines-size-chord: 18px;
+  --engines-size-counter: 21px;
+
+  /* Geometry */
+  --engines-radius-section: 6px;
+  --engines-radius-bar: 5px;
+  --engines-radius-control: 3px;
+  --engines-section-head-h: 24px;
+  --engines-btn-transport-w: 32px;
+  --engines-btn-transport-h: 27px;
+  --engines-btn-segment-h: 24px;
+  --engines-btn-toggle-h: 27px;
+  --engines-btn-header: 27px;
+  --engines-btn-strip-h: 22px;
+  --engines-btn-scene-w: 24px;
+  --engines-btn-scene-h: 21px;
+  --engines-btn-rev-w: 23px;
+  --engines-btn-rev-h: 20px;
+  --engines-btn-back-h: 17px;
+  --engines-meter-well-h: 96px;
+  --engines-meter-bar-w: 7px;
+  --engines-keyboard-h: 62px;
+  --engines-structure-bar-h: 22px;
+  --engines-gap-section: 8px;
+  --engines-pad-panel: 10px;
+
+  /* Motion */
+  --engines-pulse: 1.6s;
+  --engines-chevron: 150ms;
+  --engines-jump-flash: 1.6s;
+  --engines-jump-flash-color: rgba(255, 163, 58, 0.38);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --engines-pulse: 0s; --engines-jump-flash: 0s; }
+}
+
+/* High-contrast themes: the VS Code theme's own colours (SPEC.md §9). State keeps its meaning by
+   shape and text (tags, icons, aria-pressed), and the borders carry the structure. */
+body.vscode-high-contrast,
+body.vscode-high-contrast-light {
+  --engines-ground: var(--vscode-editor-background);
+  --engines-panel: var(--vscode-editor-background);
+  --engines-section: var(--vscode-editor-background);
+  --engines-section-head: var(--vscode-editor-background);
+  --engines-bar: var(--vscode-editor-background);
+  --engines-inset: var(--vscode-editor-background);
+  --engines-inset-border: var(--vscode-contrastBorder);
+  --engines-well: var(--vscode-editor-background);
+  --engines-control: var(--vscode-button-secondaryBackground, var(--vscode-editor-background));
+  --engines-seg-track: var(--vscode-editor-background);
+  --engines-divider: var(--vscode-contrastBorder);
+  --engines-hairline: var(--vscode-contrastBorder);
+  --engines-hairline-open: var(--vscode-contrastBorder);
+  --engines-row-alt: var(--vscode-editor-background);
+  --engines-control-2: var(--vscode-button-secondaryBackground, var(--vscode-editor-background));
+  --engines-tail: var(--vscode-editor-background);
+  --engines-tick: var(--vscode-contrastBorder);
+  --engines-tick-beat: var(--vscode-contrastBorder);
+  --engines-text-strong: var(--vscode-foreground);
+  --engines-text: var(--vscode-foreground);
+  --engines-text-control: var(--vscode-foreground);
+  --engines-text-soft: var(--vscode-foreground);
+  --engines-text-2: var(--vscode-foreground);
+  --engines-text-3: var(--vscode-foreground);
+  --engines-accent: var(--vscode-focusBorder);
+  --engines-on-accent: var(--vscode-editor-background);
+  --engines-live-row: var(--vscode-editor-background);
+  --engines-current-row: var(--vscode-editor-background);
+}
+
+/* High-contrast light: the state colours written for a dark ground become the theme's own, and the
+   dark tints behind them go (the pill, the playing / refused rows). Fixed-colour graphics — the
+   keyboard, the meter tracks, the identity colours with their dark text — keep their colours. */
+body.vscode-high-contrast-light {
+  --engines-live: var(--vscode-charts-green, var(--vscode-foreground));
+  --engines-live-bg: var(--vscode-editor-background);
+  --engines-live-pill: var(--vscode-editor-background);
+  --engines-warning: var(--vscode-editorWarning-foreground, var(--vscode-foreground));
+  --engines-error: var(--vscode-errorForeground, var(--vscode-foreground));
+  --engines-error-bg: var(--vscode-editor-background);
+  --engines-peak: var(--vscode-foreground);
+  --engines-muted-fg: var(--vscode-foreground);
+}

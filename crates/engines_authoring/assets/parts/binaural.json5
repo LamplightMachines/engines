@@ -1,0 +1,31 @@
+// The binaural bed (ADR 0047): one held root two octaves down as a beat pair — the left ear a little
+// under it, the right a little over — so the two sines beat at `spread_hz` between the ears (on
+// headphones). Sines on purpose: a saw's harmonics would each beat faster (k · spread). A `context`
+// voice: the Orrery reads it, never moves it.
+{
+  part: { summary: "binaural bed — a held root two octaves down, hard L/R, beating at 4 Hz (theta); dry" },
+  instruments: {
+    // Dry on purpose: a send blends the two sides in the bus, and the beat lives in their isolation.
+    // Pin the carrier with `root_hz` (real Hz, e.g. 110 or 109.5), or leave it to follow the note.
+    $id: {
+      type: "binaural", enabled: true, pitched: true,
+      note_engine: { polyphony: 1, glide_ms: 0 },
+      params: { wave: "sine", spread_hz: 4, level_db: -12.04, cutoff_hz: 318.49, resonance: 0.0,
+                attack_s: 1.8, decay_s: 0.6, sustain: 1.0, release_s: 4 },
+    },
+  },
+  modulators: {
+    // One held note: the root two octaves under octave 4. `context`: the Orrery hears it, never moves it.
+    $id_note: {
+      type: "step_seq", output: "note", sync: "loop", length: 16, orrery_role: "context", orrery_disable: true,
+      steps: [ { step: 0, voicing: { d: { offset: "$deg(1, -2)" } } } ],
+    },
+  },
+  matrix: {
+    // The pair's note route — it only gates the voice once `root_hz` pins the carrier.
+    m_$id: { source: "$id_note", dest: "instruments.$id.notes", kind: "note", voices: 1, priority: 1 },
+  },
+  safe_bounds: {
+    "instruments.$id.params.level_db": { min: -12.04, max: -12.04 },
+  },
+}

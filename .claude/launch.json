@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "engines-panel-harness",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "editors/vscode", "run", "harness"],
+      "port": 5179
+    }
+  ]
+}

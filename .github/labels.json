@@ -1,0 +1,26 @@
+[
+  { "name": "status:spec", "color": "d4c5f9", "description": "Spec written in the issue, waiting for a maintainer's approval" },
+  { "name": "status:plan", "color": "b4a7e8", "description": "Plan with its sub-issues, waiting for a maintainer's approval" },
+  { "name": "status:ready", "color": "8b7bd8", "description": "Approved: queued to build" },
+
+  { "name": "where:mac", "color": "5319e7", "description": "Needs a Mac to build or check: the goldens, the end-to-end suites, an audio device" },
+  { "name": "epic", "color": "edce7b", "description": "Contains sub-issues" },
+  { "name": "spike", "color": "fbca04", "description": "A time-boxed investigation that answers a question" },
+  { "name": "bug", "color": "d73a4a", "description": "Something isn't working" },
+  { "name": "needs-you", "color": "e11d21", "description": "Blocked on a maintainer: an approval, a question or a listening pass" },
+  { "name": "needs-listen", "color": "f9d0c4", "description": "An audible change: signed off by ear before merge" },
+  { "name": "needs-adr", "color": "c2e0c6", "description": "Needs a decision record in doc/decisions/" },
+  { "name": "golden-change", "color": "fef2c0", "description": "Changes render output; the goldens are re-blessed and the commit says why" },
+  { "name": "contract-change", "color": "bfd4f2", "description": "Changes the loop-doc schema or the engines-live protocol" },
+
+  { "name": "area:engine", "color": "bfdadc", "description": "engines_core: synths, effects, rendering, determinism" },
+  { "name": "area:orrery", "color": "bfdadc", "description": "The Orrery, the Arranger and the drift controller" },
+  { "name": "area:songs", "color": "bfdadc", "description": "Songs, blocks, stems and FLAC (engines-song)" },
+  { "name": "area:authoring", "color": "bfdadc", "description": "engines-check, engines-lsp, the JSON5 CST, engines-part and the parts library" },
+  { "name": "area:live", "color": "bfdadc", "description": "The engines-live player and its protocol" },
+  { "name": "area:vscode", "color": "bfdadc", "description": "The VS Code extension (editors/vscode)" },
+  { "name": "area:lab", "color": "bfdadc", "description": "The Python lab (lab/)" },
+  { "name": "area:skills", "color": "bfdadc", "description": "The skills (skills/, .claude/) and the Claude Code hook" },
+  { "name": "area:docs", "color": "bfdadc", "description": "The SRDs, decision records and README" },
+  { "name": "area:ci", "color": "bfdadc", "description": "CI and workflows (.github/)" }
+]

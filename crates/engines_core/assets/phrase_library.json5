@@ -1,0 +1,103 @@
+// Built-in sequence-pool phrase library (ADR 0028) — embedded into engines_core at compile time
+// and referenced from loop docs as `lib:<name>` (e.g. `"pool": ["lib:glass_up"]`).
+//
+// Shape = `sequence_pools` entries exactly (loop_doc::PhraseDef): pin an entry against engine
+// upgrades by copy-pasting it into your doc's `sequence_pools` and dropping the `lib:` prefix.
+//
+// Units: `t`/`dur` are HOST-modulator steps (fractional = sub-step; thirds give triplets);
+// `offset` is semitones from harmony.root (octave 4); `length` is the tile in host steps.
+// Voice semantics: `dur` present = gated (note-off at t+dur, re-strikes next tile);
+// `dur` absent = the note HOLDS across tiles (sustain; pitch changes glide).
+// `fit` (default "chord"): chord = re-voiced to the current chord under the Orrery, and
+// snapped to the doc's authored `harmony.mode` scale under a plain render (these entries
+// are authored as major-triad contours — the snap is what lands them in-key over minor/
+// modal docs); root = parallel transpose; literal = always exactly as written.
+{
+    // Even 8th-note climb across two octaves — the bright glassy arp.
+    glass_up: {
+        tags: ["busy", "bright"],
+        length: 4,
+        notes: [
+            { t: 0.0, offset: 0, dur: 0.45 },
+            { t: 0.5, offset: 4, dur: 0.45 },
+            { t: 1.0, offset: 7, dur: 0.45 },
+            { t: 1.5, offset: 12, dur: 0.45 },
+            { t: 2.0, offset: 16, dur: 0.45 },
+            { t: 2.5, offset: 19, dur: 0.45 },
+            { t: 3.0, offset: 24, dur: 0.45 },
+            { t: 3.5, offset: 28, dur: 0.45 },
+        ],
+    },
+    // Nothing on the beat: three off-beat pushes, then a step of air.
+    and_lift: {
+        tags: ["sparse", "lift"],
+        length: 4,
+        notes: [
+            { t: 0.5, offset: 7, dur: 0.4 },
+            { t: 1.5, offset: 12, dur: 0.4 },
+            { t: 2.5, offset: 16, dur: 0.4 },
+        ],
+    },
+    // Triplet up-down ripple over two steps (thirds of a step).
+    triplet_ripple: {
+        tags: ["busy", "bright"],
+        length: 2,
+        notes: [
+            { t: 0.0, offset: 12, dur: 0.3 },
+            { t: 0.333, offset: 16, dur: 0.3 },
+            { t: 0.667, offset: 19, dur: 0.3 },
+            { t: 1.0, offset: 24, dur: 0.3 },
+            { t: 1.333, offset: 19, dur: 0.3 },
+            { t: 1.667, offset: 16, dur: 0.3 },
+        ],
+    },
+    // Root eighth-note pulse with an occasional 9th colour on the last off-beat.
+    pedal_pulse: {
+        tags: ["calm", "warm"],
+        length: 2,
+        notes: [
+            { t: 0.0, offset: 0, dur: 0.4 },
+            { t: 0.5, offset: 0, dur: 0.4 },
+            { t: 1.0, offset: 0, dur: 0.4 },
+            { t: 1.5, offset: 14, dur: 0.4, prob: 0.7 },
+        ],
+    },
+    // Strike, slur down a fifth (legato glide), let go — then a step of silence.
+    sigh: {
+        tags: ["calm", "cadence"],
+        length: 4,
+        notes: [
+            { t: 0.0, offset: 12 },
+            { t: 1.0, offset: 5, legato: true, dur: 2.0 },
+        ],
+    },
+    // Alberti figure in the low register: root–fifth–third–fifth.
+    alberti_low: {
+        tags: ["busy", "warm"],
+        length: 2,
+        notes: [
+            { t: 0.0, offset: -12, dur: 0.45 },
+            { t: 0.5, offset: -5, dur: 0.45 },
+            { t: 1.0, offset: -8, dur: 0.45 },
+            { t: 1.5, offset: -5, dur: 0.45 },
+        ],
+    },
+    // One dur-less tone per 8-step tile: sustains forever; re-selection/refit GLIDES it
+    // (the drone/pad idiom — `dur` absent = hold).
+    long_hold: {
+        tags: ["calm", "drone"],
+        length: 8,
+        notes: [{ t: 0.0, offset: 0 }],
+    },
+    // Dotted push: the syncopated cell leans into beat 2, then breathes.
+    syncopa: {
+        tags: ["lift"],
+        length: 4,
+        notes: [
+            { t: 0.0, offset: 0, dur: 0.7 },
+            { t: 0.75, offset: 7, dur: 0.7 },
+            { t: 1.5, offset: 12, dur: 0.7 },
+            { t: 3.0, offset: 7, dur: 0.9 },
+        ],
+    },
+}
