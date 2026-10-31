@@ -186,3 +186,24 @@ test('run() posts the verdict on the head as mac-suite, and nothing when the hea
   await run({ github: done.github, context, core });
   assert.deepEqual(done.calls.posted, []);
 });
+
+test('a companion repo passes its own covered list, and the rules apply to it', async () => {
+  const covered = [/^crates\//, /^open$/, /^editors\/studio\//];
+  assert.ok(isCovered('open', covered) && isCovered('editors/studio/src/x.ts', covered));
+  assert.ok(!isCovered('editors/vscode/src/x.ts', covered), 'the default list no longer applies');
+  const context = { repo, payload: { pull_request: pr() } };
+  const core = { info: () => {} };
+  const bump = stubGithub({ prFiles: ['open'] });
+  await run({ github: bump.github, context, core }, { covered });
+  assert.equal(bump.calls.posted[0].state, 'pending', 'a submodule bump needs the Mac suite');
+  const ext = stubGithub({ prFiles: ['editors/vscode/src/x.ts'] });
+  await run({ github: ext.github, context, core }, { covered });
+  assert.equal(ext.calls.posted[0].state, 'success', 'not covered in the companion: not needed');
+  const carried = stubGithub({
+    prFiles: ['open', 'doc/x.md'],
+    commits: [sha(1), HEAD],
+    statuses: { [sha(1)]: PASS },
+    compare: { [`${sha(1)}...${HEAD}`]: { status: 'ahead', files: ['doc/x.md'] } },
+  });
+  assert.equal((await decide({ github: carried.github, repo, pr: pr(), covered })).state, 'success', 'carried past an uncovered change');
+});

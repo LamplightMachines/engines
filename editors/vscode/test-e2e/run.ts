@@ -11,8 +11,9 @@ import { runTests } from '@vscode/test-electron';
 
 const REPO = path.resolve(__dirname, '../../../..');
 const EXT = path.resolve(__dirname, '../..');
-/** Engines Studio, loaded beside Engines when it's compiled: your install's shape. */
-const STUDIO = path.join(REPO, 'editors', 'studio');
+/** Engines Studio, loaded beside Engines when it's compiled: your install's shape. A repo that embeds this one
+ *  points `ENGINES_STUDIO_PATH` at its own copy; the default is `editors/studio` beside this extension. */
+const STUDIO = process.env.ENGINES_STUDIO_PATH ? path.resolve(process.env.ENGINES_STUDIO_PATH) : path.join(REPO, 'editors', 'studio');
 const withStudio = fs.existsSync(path.join(STUDIO, 'out', 'src', 'extension.js'));
 
 async function main(): Promise<void> {
