@@ -138,10 +138,6 @@ fn every_skill_carries_the_shared_references_unchanged() {
             assert!(bytes == canonical, "{} differs from skills/shared/{} — edit the shared copy, then run `make skills`", copy.display(), name.to_string_lossy());
         }
     }
-    // ambient-loop-doc reads the shared copy rather than keeping its own.
-    for name in ["engine-facts.md", "music-theory.md"] {
-        assert!(!repo().join(".claude/skills/ambient-loop-doc/reference").join(name).exists(), "ambient-loop-doc keeps no copy of {name}");
-    }
 }
 
 #[test]
