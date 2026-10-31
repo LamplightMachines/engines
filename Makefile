@@ -1,7 +1,6 @@
-# Dev convenience targets — Rust core + Swift/cpal shells + Python lab.
+# Dev convenience targets — Rust core + cpal shell + Python lab.
 # Requires: cargo (Rust) and uv on PATH  (brew install rustup-init uv).
-# `make shell` additionally needs full Xcode (not just Command Line Tools).
-.PHONY: help build test test-rust test-lab test-ci test-mac audit play tui render song check lsp part migrate live vscode vscode-test prune templates skills shell clean
+.PHONY: help build test test-rust test-lab test-ci test-mac audit play tui render song check lsp part migrate live vscode vscode-test prune templates skills clean
 
 # The default doc for play/render: the neutral test drone, gain-staged to be heard. The contract
 # fixtures are correctness rigs that run hot (+13 dBFS) — play one with FIXTURE=<doc>.
@@ -75,7 +74,7 @@ audit:  ## The licence gate (LICENSING.md, deny.toml): no GPL, AGPL or LGPL-only
 	cargo deny check licenses
 	node .github/scripts/licences.js
 
-test-mac:  ## The Mac part (CONTRIBUTING.md): the full Rust suite incl. the Mac-pinned goldens, the VS Code end-to-end suite, the Swift shell when Xcode is there; then posts `mac-suite` on HEAD (needs gh; NO_STATUS=1 to skip)
+test-mac:  ## The Mac part (CONTRIBUTING.md): the full Rust suite incl. the Mac-pinned goldens, the VS Code end-to-end suite; then posts `mac-suite` on HEAD (needs gh; NO_STATUS=1 to skip)
 	.github/scripts/mac-suite.sh
 
 play:  ## Hear it live (cpal -> CoreAudio); `make play -- --doc <doc>` or FIXTURE=<doc>; add `--midi` to send type:"midi" instruments' Note/CC to a virtual port (ADR 0026); `--output-device <dev>` redirects all audio to a loopback (ADR 0027)
@@ -138,12 +137,9 @@ skills:  ## Copy the shared engine reference (skills/shared/) into each portable
 	@for s in skills/engines-*/; do mkdir -p "$$s/reference" && cp skills/shared/*.md "$$s/reference/"; done
 	@echo "skills/shared/ copied into $$(ls -d skills/engines-*/ | tr '\n' ' ')"
 
-shell:  ## Build the Swift macOS shell (requires full Xcode)
-	cargo build --release && cd shell && swift build
-
-clean:  ## Remove build artifacts (Rust, Swift, Python)
+clean:  ## Remove build artifacts (Rust, Python)
 	cargo clean
-	rm -rf .venv .build shell/.build .pytest_cache
+	rm -rf .venv .build .pytest_cache
 
 # Forwarded-arg support for `play`: when `play` is a goal, turn the trailing tokens
 # (e.g. `--doc <path>`) into no-op targets so Make doesn't fail with "No rule to make target".

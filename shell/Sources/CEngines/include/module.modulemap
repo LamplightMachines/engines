@@ -1,4 +1,0 @@
-module CEngines {
-    header "engines_core.h"
-    export *
-}

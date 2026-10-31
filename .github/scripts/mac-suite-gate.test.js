@@ -47,7 +47,7 @@ const gate = (opts, prOver) => decide({ github: stubGithub(opts).github, repo, p
 
 test('the covered list: the Mac suite\'s inputs, nothing else', () => {
   for (const f of ['crates/engines_core/src/lib.rs', 'Cargo.toml', 'Cargo.lock', 'lab/tests/fixtures/x.json', 'contracts/a.json',
-    'editors/vscode/src/x.ts', 'shell/Package.swift', 'Makefile', '.github/scripts/mac-suite.sh']) assert.ok(isCovered(f), f);
+    'editors/vscode/src/x.ts', 'Makefile', '.github/scripts/mac-suite.sh']) assert.ok(isCovered(f), f);
   for (const f of ['doc/process.md', 'README.md', '.github/scripts/mac-suite-gate.js', '.github/workflows/ci.yml',
     'lab/tests/test_x.py', 'cratesx/a', 'sub/Makefile']) assert.ok(!isCovered(f), f);
 });

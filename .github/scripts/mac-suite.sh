@@ -47,11 +47,5 @@ echo "==> cargo test (the full Rust suite, Mac-pinned tests included)"
 cargo test || fail "cargo test failed"
 echo "==> VS Code: unit + end-to-end"
 make vscode-test || fail "the VS Code tests failed"
-if xcodebuild -version >/dev/null 2>&1; then
-  echo "==> Swift shell"
-  make shell || fail "the Swift shell didn't build"
-else
-  echo "==> Swift shell skipped: no full Xcode"
-fi
 status success "passed on macOS $(sw_vers -productVersion) $(uname -m)"
 echo "mac-suite: passed for $sha"
