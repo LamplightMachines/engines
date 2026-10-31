@@ -12,10 +12,10 @@
 // fall back to pending.
 
 // What the Mac suite covers: Rust (the goldens), the fixtures the goldens render, the schema, the
-// VS Code extension (its end-to-end suite), the Swift shell, and the two files that define the suite
+// VS Code extension (its end-to-end suite) and the two files that define the suite
 // itself (the Makefile targets and mac-suite.sh). A repo that embeds this one (a companion) passes its own
 // list to `run` (`{ covered }`), and the same rules apply to it.
-const COVERED = [/^crates\//, /^Cargo\.(toml|lock)$/, /^lab\/tests\/fixtures\//, /^contracts\//, /^editors\/vscode\//, /^shell\//, /^Makefile$/, /^\.github\/scripts\/mac-suite\.sh$/];
+const COVERED = [/^crates\//, /^Cargo\.(toml|lock)$/, /^lab\/tests\/fixtures\//, /^contracts\//, /^editors\/vscode\//, /^Makefile$/, /^\.github\/scripts\/mac-suite\.sh$/];
 const CONTEXT = 'mac-suite';
 // mac-suite.sh's success description; its failures are any `failure` (the gate never posts one).
 const PASSED = /^passed on macOS/;

@@ -4,8 +4,8 @@ Copyright (C) 2026 Nathan Davis.
 
 ## The code: GPL-3.0-or-later
 
-Engines (the engine, the live player, the authoring tools, the VS Code extension, the skills, the lab, the
-Swift shell and the contracts) is free software. You can redistribute and modify it under the terms of the
+Engines (the engine, the live player, the authoring tools, the VS Code extension, the skills, the lab and
+the contracts) is free software. You can redistribute and modify it under the terms of the
 GNU General Public License, version 3 or (at your option) any later version. The text is in
 [`LICENSE`](LICENSE), and every manifest says `GPL-3.0-or-later`.
 
