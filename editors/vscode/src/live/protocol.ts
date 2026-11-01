@@ -11,7 +11,7 @@ export interface Diag {
 /** `ready.routing` (ADR 0044): which device pair each audio source plays on (`--route-sources`). */
 export interface RoutingInfo {
   channels: number;
-  /** The routing map's path; absent before `make als` built one (the doc's sources then play in order). */
+  /** The routing map's path; absent until the piece has one (the doc's sources then play in order). */
   map?: string;
   /** A companion player may add fields of its own to each pair; they reach companions raw. */
   pairs: { pair: string; source: string; name: string }[];

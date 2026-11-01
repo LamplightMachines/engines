@@ -155,7 +155,8 @@ continuous file instead. After the full render, `engines-song seams pieces/<slug
 re-checks the seams at the real length (in memory, as long as the render itself).
 
 Report the `done:` line (peak, LUFS, **0 clipped**) and add the render to `brief.md` → Renders. If
-the `engines-ableton` skill is available and the user rendered stems, offer it: it lays them into the
-piece's Ableton Live set sample-exactly. `engines-clean <slug>` lists old renders that could go
+the `engines-ableton` skill is available and the user rendered stems, end your report with a question
+of its own, not a passing mention: **Build the Live set with `/engines-ableton` (Recommended)** / Not
+now. It lays the stems into the piece's Ableton Live set sample-exactly. `engines-clean <slug>` lists old renders that could go
 (`--yes` deletes them; published and Ableton-linked renders are kept). When the user publishes a
 render, set `"published": true` in its sidecar so `engines-clean` keeps it.

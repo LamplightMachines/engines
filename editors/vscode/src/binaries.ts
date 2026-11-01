@@ -1,10 +1,12 @@
 // Where the tools live: a companion's swapped-in build (the companion API), else a configured path
-// (absolute, or relative to the repo root), else the workspace's `target/release/`. Missing ⇒ offer to
-// build them in a terminal task. A companion resolves its own tools the same way ([`resolveBinary`]).
+// (absolute, or relative to the repo root), else the workspace's `target/release/`. Missing ⇒ in a
+// checkout, offer to build them in a terminal task; anywhere else, say to reinstall ([`missingTool`]). A
+// companion resolves its own tools the same way ([`resolveBinary`]).
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { missingTool } from './missing';
 
 /** This extension's own tools. */
 export type Tool = 'engines-lsp' | 'engines-live';
@@ -61,20 +63,20 @@ export function resolveTool(tool: Tool, root: string | undefined): string | unde
   return own && fs.existsSync(own) ? own : resolveBinary(SPECS[tool], root);
 }
 
-/** Tell the user `tool` is missing; offer to build it. Resolves `true` once a build succeeded. */
+/** Tell the user `tool` is missing; in a checkout, offer to build it. Resolves `true` once a build succeeded. */
 export function offerBuild(tool: Tool, root: string | undefined): Promise<boolean> {
   return offerBuildOf(SPECS[tool], root);
 }
 
 /** [`offerBuild`] for any tool `spec` describes (a companion's). */
 export async function offerBuildOf(spec: BinarySpec, root: string | undefined): Promise<boolean> {
-  const where = root ? path.join(root, 'target', 'release', spec.name) : `target/release/${spec.name}`;
-  const pick = await vscode.window.showWarningMessage(`${spec.name} isn't built (looked for ${where}).`, 'Build it', 'Settings');
+  const missing = missingTool(spec.name, root);
+  const pick = await vscode.window.showWarningMessage(missing.text, ...(missing.build ? ['Build it'] : []), 'Settings');
   if (pick === 'Settings') {
     await vscode.commands.executeCommand('workbench.action.openSettings', `engines.${spec.setting}`);
     return false;
   }
-  if (pick !== 'Build it' || !root) {
+  if (pick !== 'Build it' || !missing.build || !root) {
     return false;
   }
   return runBuild(spec, root);

@@ -28,7 +28,7 @@ _Not yet — add one with `/engines-song`._
 _None yet._ (`<date> — <what's missing> (…)`; offer to file each as an Engine request.)
 
 ## Inspiration
-_None — delete this section if the piece didn't start from, or borrow from, a snippet or a MIDI file._
+_None — delete this section if the piece didn't start from, or borrow from, a snippet or a MIDI file (Engines Studio's `engines-listen` and `engines-midi` skills fill it in)._
 
 - Source: <Artist – Title>, <m:ss–m:ss> (`inspiration/<snippet>/`)
 - Taken: <sound | feel | both> · literal notes: <no (default) | opt-in: why>
@@ -36,7 +36,7 @@ _None — delete this section if the piece didn't start from, or borrow from, a 
 - Gaps: <what the engine couldn't match>
 - ECRs: <ids from `inspiration/requests/`, and issue links once filed>
 
-For a MIDI file (`midi/<name>/`, ADR 0053):
+For a MIDI file (`midi/<name>/`, ADR 0053; the `engines-midi` skill, with Engines Studio):
 - MIDI: <file.mid> (fnv1a <hash>) — <the analysis summary, e.g. "D mixolydian, v–IV–I, two motifs">
 - Key: <the chosen one> (alternatives: <same-notes keys, e.g. A dorian>)
 - Taken: <chords | bass | top line | other line> on <halo | bass | lead | pulse> · as written: <no (default) | opt-in: why>

@@ -6,7 +6,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { repoRoot, swapBinary } from './binaries';
+import { repoRoot, resolveTool, swapBinary } from './binaries';
 import { API_VERSION, Companions, type EnginesApi } from './companion';
 import { associationWrites, carriedOverMessage, doneId, oldKey, settingWrites, OLD_EXTENSION_ID, type Associations, type Seen, type Write } from './carryOver';
 import { readHistory, revisionPath, ago, schemaVersion, SCHEMA_VERSION } from './history';
@@ -18,6 +18,9 @@ import { Jumper } from './jump';
 import { currentAction } from './parts';
 import { listPieces, pieceOfDoc, type Piece } from './piece';
 import { parseSeconds, previewKinds, previewLengths, previewMessage } from './previewView';
+import { CLAUDE_CODE_ID, copyForClaude, linkedSkillsDir, shareReason } from './claudeSkills';
+import { isCheckout } from './missing';
+import { rewriteSkills, SHIPPED_SKILLS, toolsDir } from './skills';
 import { StatusBar } from './statusBar';
 import { StepHighlighter } from './steps';
 
@@ -39,6 +42,56 @@ export interface Api {
 
 let player: LiveController | undefined;
 
+/** The shipped skills' marked line names the folder this extension's tools are in: an agent's
+ *  shell doesn't get the extension's PATH, and agent hosts copy the skill folder once a chat starts,
+ *  so this runs first thing at activation. No tools found: the skills keep their own wording. */
+function pointSkillsAtTools(extensionPath: string, root: string | undefined, output: vscode.LogOutputChannel): void {
+  const dir = toolsDir(extensionPath, resolveTool('engines-live', root));
+  if (!dir) {
+    return;
+  }
+  try {
+    if (rewriteSkills(path.join(extensionPath, 'skills'), SHIPPED_SKILLS, dir).length) {
+      output.info(`skills: the engines-* commands are in ${dir}`);
+    }
+  } catch (e) {
+    output.warn(`pointing the skills at ${dir} failed: ${(e as Error).message}`);
+  }
+}
+
+/** Claude Code doesn't read `chatSkills`: with its extension installed, the shipped skills
+ *  (already pointed at the tools) are copied into the opened folder's `.claude/skills/`. Runs at
+ *  activation and again when trust is granted, a folder opens or extensions change. */
+function shareSkillsWithClaudeCode(extensionPath: string, output: vscode.LogOutputChannel): void {
+  const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  const why = shareReason({
+    folder,
+    trusted: vscode.workspace.isTrusted,
+    claudeCode: !!vscode.extensions.getExtension(CLAUDE_CODE_ID),
+    enabled: vscode.workspace.getConfiguration('engines').get<boolean>('skills.claudeCode', true),
+    checkout: isCheckout(folder),
+    linked: folder && linkedSkillsDir(folder),
+  });
+  if (why || !folder) {
+    output.debug(`skills: not copied for Claude Code (${why})`);
+    return;
+  }
+  try {
+    for (const { name, outcome } of copyForClaude(path.join(extensionPath, 'skills'), SHIPPED_SKILLS, folder, `the Engines extension (${ENGINES_ID})`)) {
+      if (outcome === 'copied' || outcome === 'refreshed') {
+        output.info(`skills: ${name} ${outcome} into ${path.join(folder, '.claude', 'skills')} for Claude Code`);
+      } else if (outcome === 'kept') {
+        output.info(`skills: ${path.join(folder, '.claude', 'skills', name)} isn't this extension's copy, so it's left alone`);
+      }
+    }
+  } catch (e) {
+    output.warn(`copying the skills for Claude Code failed: ${(e as Error).message}`);
+  }
+}
+
+/** This extension's id. */
+const ENGINES_ID = 'LamplightMachines.engines';
+
 /** The kind of engines-lsp's **Add part: …** source actions. */
 const ADD_PART = vscode.CodeActionKind.Source.append('addPart');
 
@@ -46,6 +99,15 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<Api> {
   const output = vscode.window.createOutputChannel('Engines', { log: true });
   await carryOver(ctx, output).catch((e: Error) => output.warn(`carrying the SME settings over failed: ${e.message}`));
   const root = repoRoot();
+  pointSkillsAtTools(ctx.extensionPath, root, output);
+  const share = () => shareSkillsWithClaudeCode(ctx.extensionPath, output);
+  share();
+  ctx.subscriptions.push(
+    vscode.workspace.onDidGrantWorkspaceTrust(share),
+    vscode.workspace.onDidChangeWorkspaceFolders(share),
+    vscode.extensions.onDidChange(share),
+    vscode.workspace.onDidChangeConfiguration((e) => e.affectsConfiguration('engines.skills.claudeCode') && share()),
+  );
   const live = new LiveController(output);
   player = live;
   // The old extension, still installed, would start a player of its own.

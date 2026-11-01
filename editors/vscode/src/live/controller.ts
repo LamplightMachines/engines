@@ -532,7 +532,7 @@ export class LiveController implements vscode.Disposable {
     }
   }
 
-  /** Another engines-live (a terminal `make live`) already playing this piece? Ask before doubling up. */
+  /** Another engines-live (one started in a terminal) already playing this piece? Ask before doubling up. */
   private async checkOtherPlayer(piece: Piece): Promise<boolean> {
     const pid = livePlayer(piece.dir); // (one under another user counts too)
     if (pid === undefined) {

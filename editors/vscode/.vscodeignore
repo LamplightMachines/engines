@@ -12,3 +12,4 @@ tsconfig.json
 .vscode-test/**
 *.vsix
 .gitignore
+scripts/**
