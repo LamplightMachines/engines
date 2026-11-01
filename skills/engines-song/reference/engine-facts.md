@@ -1,10 +1,10 @@
 # Engine facts (the authoring contract)
 
-Distilled from the engine's source (the file names in headings are where each fact came from, in an
-Engines checkout). These are the behaviors that actually govern how a loop doc sounds. When in doubt,
-check (`engines-check`) or try it (`engines-song verify`, a short render in memory), never guess. In
-piece work (the `/engines-new`, `/engines-edit` and `/engines-song` skills) don't open the source:
-what the build can't do is reported, not engineered. The formal definition is the engine's v0.9 loop
+Distilled from the engine's source; the file names in headings say where each fact came from, for
+engine work only. These are the behaviors that actually govern how a loop doc sounds. When in doubt,
+check (`engines-check`) or try it (`engines-song verify`, a short render in memory), never guess.
+Piece work (the `/engines-new`, `/engines-edit` and `/engines-song` skills) needs only the `engines-*`
+commands, never the source: what the build can't do is reported, not engineered. The formal definition is the engine's v0.9 loop
 contract, which its strict checker embeds: run `engines-check <doc> --parts` on every draft (unknown
 keys, bad enums/ranges and dangling routes are errors), and `engines-check --catalog` for every
 param's range, default, unit and depth key.
@@ -130,7 +130,7 @@ Two `type`s, two `output` domains, two `sync` modes. Phase persists across loops
   `0.333`/`0.667` = triplets. `t: 0` is the default (on the grid).
 - **Phrase arm** — the THIRD exclusive note source (`steps ⊕ generator ⊕ phrase`):
   `phrase: { pool: ["<id>", "lib:<name>"], select: "seeded"|"cycle", tags?, active? }` plays entries from the
-  doc's top-level `sequence_pools` and/or the built-in library (`crates/engines_core/assets/phrase_library.json5`,
+  doc's top-level `sequence_pools` and/or the engine's built-in library (`lib:<name>`,
   8 entries: `glass_up`, `and_lift`, `triplet_ripple`, `pedal_pulse`, `sigh`, `alberti_low`, `long_hold`,
   `syncopa`). **Requires an explicit `step_duration`.** An entry is `{ fit, tags, length, notes: [{ t, offset,
   dur?, legato?, prob?, velocity?, cents_offset? }] }` tiled every `length` host steps; `t`/`dur` are in host
@@ -245,7 +245,7 @@ polyrhythm — pick per piece.)
 Same `loop_id` + phase snapshot ⇒ **bit-identical** audio. That makes the A/B diff-RMS test exact: a
 non-zero difference between full and a routing removed is *exactly* that routing's audio contribution.
 
-## Synth types for the centre (ADR 0009 — `crates/engines_core/src/synth.rs`)
+## Synth types for the centre (ADR 0009 — `synth.rs`)
 - **`type:"dual"`** — two oscillators; osc B phase-modulates osc A (DX-style) and can also be mixed in.
   Params: `osc_a_wave`/`osc_b_wave` (categorical), `osc_a_level_db` (default −1.94 dB), `osc_b_level_db`
   (default `-Infinity` = modulator only), **`osc_b_ratio`** (0.5..12: osc B = note × ratio),

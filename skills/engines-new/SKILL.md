@@ -89,12 +89,14 @@ Rounds, merged or skipped as the idea allows:
    `rain-on-glass`). Then ask: **Lock this (Recommended)** / Change something. Loop until it's
    locked. **Create nothing before the lock.**
 
-**From an inspiration snippet:** if the `engines-listen` skill is available, follow it for the
+**From an inspiration snippet**, whenever the user gives one (in the idea or any answer, offered or
+not): if the `engines-listen` skill is available, follow it for the
 measuring and mapping before round 2: the snippet's values go first in each question, marked "(from
 the snippet)", and its parts replace step 2's layers. The lock stays the gate. Without that skill,
 say that starting from a recording needs Engines Studio, and start from scratch.
 
-**From a MIDI file:** if the `engines-midi` skill is available, follow it: it reads the file, asks
+**From a MIDI file**, whenever the user gives one (a `.mid` in the idea or any answer, offered or
+not): if the `engines-midi` skill is available, follow it: it reads the file, asks
 about the split, the key and what to take, and lays the material onto library voices. The lock stays
 the gate. Without it, say that a MIDI file needs Engines Studio.
 

@@ -11,7 +11,7 @@
     "url": "https://github.com/LamplightMachines/engines"
   },
   "engines": {
-    "vscode": "^1.95.0"
+    "vscode": "^1.109.0"
   },
   "categories": [
     "Programming Languages",
@@ -57,12 +57,17 @@
         "engines.server.path": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Path to `engines-lsp`. Empty: `target/release/engines-lsp` in the workspace (`make lsp` builds it)."
+          "markdownDescription": "Path to `engines-lsp`. Empty: `target/release/engines-lsp` in the workspace."
+        },
+        "engines.skills.claudeCode": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Copy the Engines skills (`/engines-new`, `/engines-edit`, `/engines-song`) into the opened folder's `.claude/skills/` when the Claude Code extension is installed, since Claude Code doesn't read the skills VS Code extensions declare. A copy is refreshed each time Engines starts; delete its `.engines-copy` file to keep your own edits."
         },
         "engines.live.path": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Path to `engines-live`. Empty: `target/release/engines-live` in the workspace (`make vscode` builds it)."
+          "markdownDescription": "Path to `engines-live`. Empty: `target/release/engines-live` in the workspace."
         },
         "engines.live.args": {
           "type": "array",
@@ -295,6 +300,17 @@
           "highContrastLight": "#2f6ca9"
         }
       }
+    ],
+    "chatSkills": [
+      {
+        "path": "./skills/engines-new/SKILL.md"
+      },
+      {
+        "path": "./skills/engines-edit/SKILL.md"
+      },
+      {
+        "path": "./skills/engines-song/SKILL.md"
+      }
     ]
   },
   "scripts": {
@@ -303,14 +319,15 @@
     "test": "npm run compile && node --test 'out/test/*.test.js'",
     "test:e2e": "npm run compile && node out/test-e2e/run.js",
     "harness": "npm run compile && node out/dev/serve.js",
-    "package": "node -e \"require('fs').rmSync('out', { recursive: true, force: true })\" && tsc -p . && node out/dev/package.js -o engines.vsix"
+    "package": "node -e \"require('fs').rmSync('out', { recursive: true, force: true })\" && npm run skills && tsc -p . && node out/dev/package.js -o engines.vsix",
+    "skills": "node scripts/copy-skills.mjs"
   },
   "dependencies": {
     "vscode-languageclient": "^10.1.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
-    "@types/vscode": "~1.95.0",
+    "@types/vscode": "~1.109.0",
     "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^4.0.0",
     "typescript": "~5.9.3",

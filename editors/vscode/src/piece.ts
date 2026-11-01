@@ -31,7 +31,7 @@ export function pieceOfDoc(file: string): Piece | undefined {
 }
 
 /**
- * The pid of an engines-live already playing the piece in `dir` (a terminal `make live`): its
+ * The pid of an engines-live already playing the piece in `dir` (`engines-live` in a terminal): its
  * `.live/status.json` says playing or paused and that process exists. `undefined` otherwise.
  * `probe` is `process.kill(pid, 0)`: it throws `ESRCH` for a pid that's gone (stale status), but
  * `EPERM` for one that exists under another user — that's still a player.

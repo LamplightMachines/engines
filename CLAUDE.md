@@ -80,7 +80,13 @@ If anything here conflicts with the SRDs (outside the learner), the SRD wins —
   (`crates/engines_tui`), a Swift macOS CLI (`shell/`, AVAudioEngine over the C ABI; needs full Xcode). The bins
   parse args with the clap crate.
 - **The VS Code extension:** TypeScript, `editors/vscode/`. Its companion API (`editors/vscode/API.md`) lets
-  another extension add strip buttons, output steps, commands and its own player build.
+  another extension add strip buttons, output steps, commands and its own player build. It ships the piece
+  skills (VS Code ≥ 1.109): `npm run package` copies `skills/engines-{new,edit,song}` into `editors/vscode/skills/`
+  (gitignored), `contributes.chatSkills` declares them, and activation rewrites each copy's marked bin line
+  (`<!-- engines:bin -->`) to the folder its tools are in. Claude Code doesn't read `chatSkills`, so with its
+  extension installed the copies also go into the opened folder's `.claude/skills/` (trusted, not a checkout;
+  stamped `.engines-copy`, only stamped copies refreshed; `engines.skills.claudeCode` turns it off). The
+  cross-agent checklist is `skills/CHECKS.md`.
 - **Lab:** Python 3.12 via `uv`, driving the engine over the CLI/file boundary as an acceptance suite.
 
 ## Build and test

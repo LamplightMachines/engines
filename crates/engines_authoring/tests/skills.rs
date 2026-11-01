@@ -1,13 +1,17 @@
 //! The portable skills: `skills/engines-new`, `engines-edit` and `engines-song` are one
 //! copy for Claude Code (linked from `.claude/skills/`) and the VS Code extension, so they must run
 //! anywhere the bundled `engines-*` commands do. This pins what that takes:
-//! - they call only the bundled commands — no `make`, `cargo`, `uv`, Python or `engines-render` — and
-//!   name no agent's question tool;
+//! - they call only the bundled commands — no `make`, `cargo`, `uv`, Python or `engines-render` — name
+//!   no agent's question tool, and send the agent to no source tree (a checkout, `crates/`, `editors/`,
+//!   `tools/`): an installed extension has none;
 //! - each folder is named for its `name` field, its description within 1024 characters (VS Code's
 //!   `chatSkills` requires both);
 //! - each shared reference (`skills/shared/`) is in every skill unchanged (`make skills` copies it);
 //! - `engines-new`'s skeleton carries `engines-defaults.json5`'s control settings and checks clean;
-//! - `.claude/skills/` links to the same folders and has no `piece-*` skill left.
+//! - `.claude/skills/` links to the same folders and has no `piece-*` skill left;
+//! - Studio's features (a Live set, MIDI, Ableton, `engines-midi`, …) appear only in passages that are
+//!   conditional on Studio (the hand-offs). The extension's free-build test leaves the shipped skills
+//!   to this one.
 
 use std::path::{Path, PathBuf};
 
@@ -78,7 +82,7 @@ fn forbidden(text: &str) -> Vec<String> {
         }
     }
     let lower = text.to_lowercase();
-    for word in ["engines-render", "target/release", "askuserquestion", "askquestions", "ask_user", "ask-questions", "uv run", ".py "] {
+    for word in ["engines-render", "target/release", "askuserquestion", "askquestions", "ask_user", "ask-questions", "uv run", ".py ", "checkout", "crates/", "editors/", "tools/"] {
         if lower.contains(word) {
             out.push(format!("names `{word}`"));
         }
@@ -106,6 +110,8 @@ fn the_skills_call_only_the_bundled_commands_and_name_no_question_tool() {
     assert_eq!(forbidden("```sh\ncargo build --release\n```").len(), 1);
     assert_eq!(forbidden("`./target/release/engines-render d.json5 o.wav 3`").len(), 2);
     assert_eq!(forbidden("Ask with AskUserQuestion.").len(), 1);
+    assert_eq!(forbidden("the built-in library (`crates/engines_core/assets/phrase_library.json5`)").len(), 1);
+    assert_eq!(forbidden("where each fact came from, in an Engines checkout").len(), 1);
     assert!(forbidden("Make it darker: `engines-part add <slug> halo` && `engines-song verify d`").is_empty());
 }
 
@@ -165,4 +171,83 @@ fn claude_code_reads_the_same_folders() {
     }
     let old: Vec<String> = std::fs::read_dir(&claude).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).filter(|n| n.starts_with("piece-")).collect();
     assert!(old.is_empty(), "the piece-* skills are replaced by the engines-* ones: {old:?}");
+}
+
+/// What the free build may not name (`editors/vscode/test/free.test.ts`'s words).
+const STUDIO_WORDS: [&str; 8] = ["Ableton", "Live set", "engines-als", "engines-midi", "MIDI", "toggleMidi", "midi_mirror", "buildLiveSet"];
+/// What makes a passage a hand-off: it's conditional on Studio's skills.
+const HAND_OFF: [&str; 2] = ["skill is available", "Engines Studio"];
+
+/// `word` in `text`, `MIDI` as a whole word only (as the free test's `\bMIDI\b`).
+fn names(text: &str, word: &str) -> bool {
+    if word != "MIDI" {
+        return text.contains(word);
+    }
+    text.match_indices(word).any(|(i, _)| {
+        let before = text[..i].chars().next_back().is_none_or(|c| !c.is_alphanumeric() && c != '_');
+        let after = text[i + word.len()..].chars().next().is_none_or(|c| !c.is_alphanumeric() && c != '_');
+        before && after
+    })
+}
+
+/// The passages of a markdown text: its blank-line paragraphs, with each list item a passage of its
+/// own (continuation lines included) that also carries the line ending in `:` that introduced its list.
+fn passages(md: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let mut lead = String::new();
+    let mut current = String::new();
+    let mut in_list = false;
+    for line in md.lines() {
+        let t = line.trim_start();
+        let item = t.starts_with("- ") || t.starts_with("* ") || t.split_once(". ").is_some_and(|(n, _)| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()));
+        if t.is_empty() {
+            out.push(std::mem::take(&mut current));
+            lead.clear();
+            in_list = false;
+        } else if item {
+            if !in_list && current.trim_end().ends_with(':') {
+                lead = current.clone();
+            }
+            out.push(std::mem::take(&mut current));
+            current = format!("{lead}\n{line}");
+            in_list = true;
+        } else {
+            current.push('\n');
+            current.push_str(line);
+        }
+    }
+    out.push(current);
+    out.retain(|p| !p.trim().is_empty());
+    out
+}
+
+/// The passages of `md` that name a Studio feature without being a hand-off.
+fn unconditional_studio_mentions(md: &str) -> Vec<String> {
+    passages(md)
+        .into_iter()
+        .filter(|p| STUDIO_WORDS.iter().any(|w| names(p, w)) && !HAND_OFF.iter().any(|h| p.contains(h)))
+        .collect()
+}
+
+#[test]
+fn studio_features_appear_only_in_hand_offs() {
+    let mut bad = Vec::new();
+    for s in SKILLS {
+        let mut all = Vec::new();
+        files(&repo().join("skills").join(s), &mut all);
+        for f in all {
+            let text = std::fs::read_to_string(&f).unwrap();
+            for p in unconditional_studio_mentions(&text) {
+                bad.push(format!("{}: {}", f.strip_prefix(repo()).unwrap().display(), p.trim()));
+            }
+        }
+    }
+    assert!(bad.is_empty(), "the open skills name Studio's features only where Studio's skills are available (the hand-offs):\n{}", bad.join("\n---\n"));
+
+    // The rule itself: a list item carries its lead-in, its own condition, or neither.
+    assert!(unconditional_studio_mentions("Lay the stems into the Ableton Live set.").len() == 1);
+    assert!(unconditional_studio_mentions("If the `engines-ableton` skill is available, offer it: it builds the Live set.").is_empty());
+    assert!(unconditional_studio_mentions("For a MIDI file (with Engines Studio):\n- MIDI: <file>\n- Key: <key>").is_empty());
+    assert!(unconditional_studio_mentions("Start from:\n- a snippet, if the `engines-listen` skill is available\n- a MIDI file").len() == 1);
+    assert!(unconditional_studio_mentions("a MIDIfile_x and engines-middle").is_empty());
 }
